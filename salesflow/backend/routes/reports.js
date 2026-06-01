@@ -37,6 +37,8 @@ function getGroupedSku(sku) {
     { key: 'KIDS-TRACK-PC', name: 'KIDS-TRACK-PC' },
     { key: 'KIDS-BARFI-PC', name: 'KIDS-BARFI-PC' },
     { key: 'KIDS-BARFI', name: 'KIDS-BARFI-PC' },
+    { key: 'KIDS-BURFI-PC', name: 'KIDS-BARFI-PC' },
+    { key: 'KIDS-BURFI', name: 'KIDS-BARFI-PC' },
     { key: 'BARFI-PC', name: 'BARFI-PC' },
     { key: 'KIDS-PYJM-PC', name: 'KIDS-Pyjm-PC' },
     { key: 'PYJAMA-PC', name: 'Pyjama-PC' },
@@ -47,7 +49,8 @@ function getGroupedSku(sku) {
     { key: 'SHPC', name: 'SHPC' },
     { key: 'GB', name: 'GB' },
     { key: 'WB', name: 'WB' },
-    { key: 'BARFI', name: 'BARFI-PC' }
+    { key: 'BARFI', name: 'BARFI-PC' },
+    { key: 'BURFI', name: 'BARFI-PC' }
   ];
 
   for (const g of groups) {
