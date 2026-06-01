@@ -1,0 +1,98 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id       Int    @id @default(autoincrement())
+  username String @unique
+  password String // Hashed
+
+  @@map("users")
+}
+
+model Product {
+  id              Int            @id @default(autoincrement())
+  name            String
+  category        String
+  labels_per_unit Int
+  base_price      Int            // Stored in paisa (integer)
+  created_at      DateTime       @default(now())
+  sku_mappings    SkuMapping[]
+  sales_records   SalesRecord[]
+  account_prices  AccountPrice[]
+
+  @@map("products")
+}
+
+model SkuMapping {
+  id              Int      @id @default(autoincrement())
+  marketplace_sku String   @unique
+  product_id      Int
+  color_variant   String?
+  size_variant    String?
+  platform        String   // meesho, flipkart, amazon
+  product         Product  @relation(fields: [product_id], references: [id], onDelete: Cascade)
+
+  @@map("sku_mappings")
+}
+
+model Account {
+  id             Int            @id @default(autoincrement())
+  name           String
+  platform       String         // meesho, flipkart, amazon
+  is_active      Boolean        @default(true)
+  notes          String?
+  sales_records  SalesRecord[]
+  pdf_imports    PdfImport[]
+  account_prices AccountPrice[]
+
+  @@map("accounts")
+}
+
+model AccountPrice {
+  id         Int      @id @default(autoincrement())
+  account_id Int
+  product_id Int
+  price      Int      // Stored in paisa (price override for this account)
+  account    Account  @relation(fields: [account_id], references: [id], onDelete: Cascade)
+  product    Product  @relation(fields: [product_id], references: [id], onDelete: Cascade)
+
+  @@unique([account_id, product_id])
+  @@map("account_prices")
+}
+
+model SalesRecord {
+  id              Int      @id @default(autoincrement())
+  date            DateTime
+  account_id      Int
+  product_id      Int
+  marketplace_sku String
+  quantity        Int
+  labels_total    Int
+  revenue         BigInt   // Stored in paisa, can exceed 2.14B paisa (2.1 Crore INR)
+  source_pdf_name String
+  created_at      DateTime @default(now())
+  account         Account  @relation(fields: [account_id], references: [id], onDelete: Cascade)
+  product         Product  @relation(fields: [product_id], references: [id], onDelete: Cascade)
+
+  @@map("sales_records")
+}
+
+model PdfImport {
+  id                Int      @id @default(autoincrement())
+  filename          String
+  account_id        Int
+  import_date       DateTime @default(now())
+  status            String   // queued, processing, done, error
+  records_extracted Int      @default(0)
+  created_at        DateTime @default(now())
+  account           Account  @relation(fields: [account_id], references: [id], onDelete: Cascade)
+
+  @@unique([filename, account_id]) // Prevent double imports for same file + account
+  @@map("pdf_imports")
+}

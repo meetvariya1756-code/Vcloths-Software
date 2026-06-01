@@ -1,0 +1,49 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: salesflow-db
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: salesflow
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  pdf-parser:
+    build: ./pdf-parser
+    container_name: salesflow-pdf-parser
+    restart: always
+    ports:
+      - "5001:5001"
+
+  backend:
+    build: ./backend
+    container_name: salesflow-backend
+    restart: always
+    ports:
+      - "5000:5000"
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@db:5432/salesflow?schema=public
+      - JWT_SECRET=salesflow-super-secret-key-12345
+      - PDF_PARSER_URL=http://pdf-parser:5001
+      - PORT=5000
+    depends_on:
+      - db
+      - pdf-parser
+
+  frontend:
+    build: ./frontend
+    container_name: salesflow-frontend
+    restart: always
+    ports:
+      - "5173:5173"
+    depends_on:
+      - backend
+
+volumes:
+  pgdata:

@@ -1,0 +1,46 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  font-family: 'Inter', sans-serif;
+  @apply bg-slate-50 text-slate-900;
+  margin: 0;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: 'Outfit', sans-serif;
+}
+
+/* Monospace badge styles for SKUs */
+.sku-badge {
+  font-family: 'ui-monospace', 'SFMono-Regular', 'Menlo', 'Monaco', 'monospace';
+  @apply bg-slate-100 border border-slate-200 text-slate-800 rounded px-2 py-0.5 text-xs font-medium tracking-tight;
+}
+
+/* Platform badge styling */
+.platform-badge-meesho {
+  @apply bg-blue-50 border border-blue-200 text-blue-700 rounded px-2.5 py-0.5 text-xs font-semibold uppercase;
+}
+
+.platform-badge-flipkart {
+  @apply bg-orange-50 border border-orange-200 text-orange-700 rounded px-2.5 py-0.5 text-xs font-semibold uppercase;
+}
+
+.platform-badge-amazon {
+  @apply bg-green-50 border border-green-200 text-green-700 rounded px-2.5 py-0.5 text-xs font-semibold uppercase;
+}
+
+/* Hide scrollbar for premium aesthetics */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  @apply bg-transparent;
+}
+::-webkit-scrollbar-thumb {
+  @apply bg-slate-200 rounded-full hover:bg-slate-300;
+}
