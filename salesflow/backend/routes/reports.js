@@ -23,34 +23,36 @@ function getGroupedSku(sku) {
   
   // Define groups based on the patterns from the image
   const groups = [
-    { key: 'MEN-GB-BGY-PC', name: 'MEN-GB-BGY-PC' },
-    { key: 'MEN-WB-BGY-PC', name: 'MEN-WB-BGY-PC' },
-    { key: 'KIDS-GB-BGY-PC', name: 'KIDS-GB-BGY-PC' },
-    { key: 'KIDS-WB-BGY-PC', name: 'KIDS-WB-BGY-PC' },
-    { key: 'LDS-GB-BGY-PC', name: 'LDS-GB-BGY-PC' },
-    { key: 'LDS-WB-BGY-PC', name: 'LDS-WB-BGY-PC' },
-    { key: 'MEN-(KB)-BGY-PC', name: 'MEN-(KB)-BGY-PC' },
-    { key: 'MEN-KB-BGY-PC', name: 'MEN-(KB)-BGY-PC' },
-    { key: 'STRIP-SH-WB-PC', name: 'STRIP-SH-WB-PC' },
-    { key: '(CORD-SH)-PC', name: '(CORD-SH)-PC' },
-    { key: 'CORD-SH-PC', name: '(CORD-SH)-PC' },
-    { key: 'KIDS-TRACK-PC', name: 'KIDS-TRACK-PC' },
-    { key: 'KIDS-BARFI-PC', name: 'KIDS-BARFI-PC' },
-    { key: 'KIDS-BARFI', name: 'KIDS-BARFI-PC' },
-    { key: 'KIDS-BURFI-PC', name: 'KIDS-BARFI-PC' },
-    { key: 'KIDS-BURFI', name: 'KIDS-BARFI-PC' },
-    { key: 'BARFI-PC', name: 'BARFI-PC' },
-    { key: 'KIDS-PYJM-PC', name: 'KIDS-Pyjm-PC' },
-    { key: 'PYJAMA-PC', name: 'Pyjama-PC' },
-    { key: '(ZIPER)-TRACK-PC', name: '(ZIPER)-TRACK-PC' },
-    { key: 'ZIPER-TRACK-PC', name: '(ZIPER)-TRACK-PC' },
-    { key: 'SHIRTPC', name: 'SHIRTPC' },
-    { key: 'TRACK-PC', name: 'TRACK-PC' },
-    { key: 'SHPC', name: 'SHPC' },
-    { key: 'GB', name: 'GB' },
-    { key: 'WB', name: 'WB' },
-    { key: 'BARFI', name: 'BARFI-PC' },
-    { key: 'BURFI', name: 'BARFI-PC' }
+    // 1. Shorts Category
+    { key: 'STRIP-SH-WB', name: 'Stripe Shorts' },
+    { key: 'CORD-SH', name: 'Cord Shorts' },
+    { key: 'SHPC', name: 'Shorts' },
+    { key: 'SORT', name: 'Shorts' },
+    { key: 'SHORTS', name: 'Shorts' },
+
+    // 2. Track Category
+    { key: 'ZIPER-TRACK', name: 'Zipper Track' },
+    { key: '3-PATTI-TRACK', name: '3 Patti Track' },
+    { key: 'KIDS-TRACK', name: 'Kids Track' },
+    { key: 'TRACK-PC', name: 'Track Pants' },
+
+    // 3. Barfi Category
+    { key: 'KIDS-BARFI', name: 'Kids Barfi' },
+    { key: 'KIDS-BURFI', name: 'Kids Barfi' },
+    { key: 'BARFI', name: 'Barfi' },
+    { key: 'BURFI', name: 'Barfi' },
+
+    // 4. Ladies Category
+    { key: 'LDS-WB', name: 'Ladies WB' },
+    { key: 'LDS-GB', name: 'Ladies GB' },
+
+    // 5. Men's Category
+    { key: 'MEN-WB', name: 'Men WB' },
+    { key: 'MEN-GB', name: 'Men GB' },
+
+    // 6. Kids Category
+    { key: 'KIDS-WB', name: 'Kids WB' },
+    { key: 'KIDS-GB', name: 'Kids GB' }
   ];
 
   for (const g of groups) {

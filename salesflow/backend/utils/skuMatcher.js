@@ -1,25 +1,30 @@
 const skuPatterns = [
-  { name: 'SHPC', pattern: /SHPC-?/i, price: 8000, category: 'Apparel', labels_per_unit: 4 },
-  { name: 'TRACK-PC', pattern: /TRACK-PC-?/i, price: 10500, category: 'Apparel', labels_per_unit: 4 },
-  { name: 'SHIRTPC', pattern: /SHIRTPC-?/i, price: 11000, category: 'Apparel', labels_per_unit: 4 },
-  { name: '(ZIPER)-TRACK-PC', pattern: /ZIPER-TRACK-PC-?/i, price: 17500, category: 'Apparel', labels_per_unit: 4 },
-  { name: 'Pyjama-PC', pattern: /Pyjama-PC-?/i, price: 9000, category: 'Apparel', labels_per_unit: 4 },
-  { name: 'KIDS-Pyjm-PC', pattern: /KIDS-Pyjm-PC-?/i, price: 9000, category: 'Kids', labels_per_unit: 2 },
-  { name: 'KIDS-TRACK-PC', pattern: /KIDS-TRACK-PC-?/i, price: 10500, category: 'Kids', labels_per_unit: 2 },
-  { name: 'KIDS-BARFI-PC', pattern: /KIDS-B[AU]RFI-PC-?/i, price: 11000, category: 'Kids', labels_per_unit: 2 },
-  { name: 'KIDS-BARFI-PC', pattern: /KIDS.*B[AU]RFI/i, price: 11000, category: 'Kids', labels_per_unit: 2 },
-  { name: 'BARFI-PC', pattern: /B[AU]RFI-PC-?/i, price: 11000, category: 'Apparel', labels_per_unit: 4 },
-  { name: 'BARFI-PC', pattern: /B[AU]RFI/i, price: 11000, category: 'Apparel', labels_per_unit: 4 },
-  { name: 'PANTPC', pattern: /PANTPC-?/i, price: 14500, category: 'Apparel', labels_per_unit: 4 },
-  { name: 'LDS-GB-BGY-PC', pattern: /LDS-GB-BGY-PC-?/i, price: 16000, category: 'Apparel', labels_per_unit: 4 },
-  { name: 'LDS-WB-BGY-PC', pattern: /LDS-WB-BGY-PC-?/i, price: 16000, category: 'Apparel', labels_per_unit: 4 },
-  { name: 'KIDS-WB-BGY-PC', pattern: /KIDS-WB-BGY-PC-?/i, price: 16000, category: 'Kids', labels_per_unit: 2 },
-  { name: 'KIDS-GB-BGY-PC', pattern: /KIDS-GB-BGY-PC-?/i, price: 16000, category: 'Kids', labels_per_unit: 2 },
-  { name: 'MEN-WB-BGY-PC', pattern: /MEN-WB-BGY-PC-?/i, price: 16500, category: 'Innerwear', labels_per_unit: 60 },
-  { name: 'MEN-GB-BGY-PC', pattern: /MEN-GB-BGY-PC-?/i, price: 16500, category: 'Innerwear', labels_per_unit: 60 },
-  { name: '(CORD-SH)-PC', pattern: /CORD-SH-PC-?/i, price: 16000, category: 'Apparel', labels_per_unit: 4 },
-  { name: 'STRIP-SH-WB-PC', pattern: /STRIP-SH-WB-PC-?/i, price: 13000, category: 'Apparel', labels_per_unit: 4 },
-  { name: 'MEN-(KB)-BGY-PC', pattern: /MEN-KB-BGY-PC-?/i, price: 16000, category: 'Innerwear', labels_per_unit: 60 }
+  // 1. Shorts Category
+  { name: 'Stripe Shorts', pattern: /STRIP-SH-WB/i, price: 13000, category: 'Shorts', labels_per_unit: 4 },
+  { name: 'Cord Shorts', pattern: /CORD-SH/i, price: 16000, category: 'Shorts', labels_per_unit: 4 },
+  { name: 'Shorts', pattern: /(SHPC|SORT|SHORTS|SH-)/i, price: 8000, category: 'Shorts', labels_per_unit: 4 },
+
+  // 2. Track Category
+  { name: 'Zipper Track', pattern: /ZIPER-TRACK/i, price: 17500, category: 'Track', labels_per_unit: 4 },
+  { name: '3 Patti Track', pattern: /3-PATTI-TRACK/i, price: 13000, category: 'Track', labels_per_unit: 4 },
+  { name: 'Kids Track', pattern: /KIDS-TRACK/i, price: 10500, category: 'Track', labels_per_unit: 2 },
+  { name: 'Track Pants', pattern: /TRACK-PC/i, price: 10500, category: 'Track', labels_per_unit: 4 },
+
+  // 3. Barfi Category
+  { name: 'Kids Barfi', pattern: /KIDS-B[AU]RFI/i, price: 11000, category: 'Barfi', labels_per_unit: 2 },
+  { name: 'Barfi', pattern: /B[AU]RFI/i, price: 11000, category: 'Barfi', labels_per_unit: 4 },
+
+  // 4. Ladies Category
+  { name: 'Ladies WB', pattern: /LDS-WB/i, price: 16500, category: 'Ladies', labels_per_unit: 4 },
+  { name: 'Ladies GB', pattern: /LDS-GB/i, price: 16500, category: 'Ladies', labels_per_unit: 4 },
+
+  // 5. Men's Category
+  { name: 'Men WB', pattern: /MEN-WB/i, price: 16500, category: 'Men', labels_per_unit: 60 },
+  { name: 'Men GB', pattern: /MEN-GB/i, price: 16500, category: 'Men', labels_per_unit: 60 },
+
+  // 6. Kids Category
+  { name: 'Kids WB', pattern: /KIDS-WB/i, price: 16000, category: 'Kids', labels_per_unit: 2 },
+  { name: 'Kids GB', pattern: /KIDS-GB/i, price: 16000, category: 'Kids', labels_per_unit: 2 }
 ];
 
 function levenshteinDistance(a, b) {
