@@ -151,8 +151,8 @@ export default function Import() {
       const targetProduct = productsList.find(p => p.id.toString() === selectedProductId);
       const updatedPreview = previewData.map(r => {
         if (r.raw_sku === mappingModalSku) {
-          const labels_total = r.quantity * targetProduct.labels_per_unit;
-          const revenue = labels_total * targetProduct.base_price;
+          const labels_total = 1; // 1 shipping label/page per transaction
+          const revenue = r.quantity * targetProduct.base_price; // pieces sold multiplied by price per piece
           return {
             ...r,
             mapped_product_id: targetProduct.id,
