@@ -15,10 +15,20 @@ const PDF_PARSER_URL = process.env.PDF_PARSER_URL || 'http://localhost:5001';
 // Helper to extract the PC pieces quantity multiplier from SKU
 function getPcNumber(sku) {
   if (!sku) return 1;
-  const match = sku.match(/PC[-_]?(\d+)/i);
-  if (match) {
-    return parseInt(match[1]);
+  const upper = sku.toUpperCase().trim();
+  
+  // 1. Match PC-X, PC_X, PCX
+  const pcMatch = upper.match(/PC[-_]?(\d+)/i);
+  if (pcMatch) {
+    return parseInt(pcMatch[1]);
   }
+  
+  // 2. Match trailing dash/underscore number (e.g., MEN-WB-2 -> 2, KIDS-WB-BGY-1 -> 1)
+  const trailingMatch = upper.match(/[-_](\d+)$/);
+  if (trailingMatch) {
+    return parseInt(trailingMatch[1]);
+  }
+  
   return 1;
 }
 

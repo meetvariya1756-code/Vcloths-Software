@@ -16,9 +16,14 @@ function getGroupedSku(sku) {
   
   // Extract PC pieces number multiplier
   let pcNum = null;
-  const pcMatch = upper.match(/PC[-_]?(\d+)/i) || upper.match(/-(\d+)$/);
+  const pcMatch = upper.match(/PC[-_]?(\d+)/i);
   if (pcMatch) {
     pcNum = parseInt(pcMatch[1]);
+  } else {
+    const trailingMatch = upper.match(/[-_](\d+)$/);
+    if (trailingMatch) {
+      pcNum = parseInt(trailingMatch[1]);
+    }
   }
   
   // Define groups based on the patterns from the image
