@@ -30,8 +30,9 @@ export default function Dashboard() {
   }, []);
 
   const fetchDashboardSummary = async () => {
+    setLoading(true);
     try {
-      const response = await api.get('/dashboard/summary?date=today');
+      const response = await api.get(`/dashboard/summary`);
       setData(response.data);
     } catch (err) {
       console.error('Failed to load dashboard summary', err);
@@ -58,7 +59,7 @@ export default function Dashboard() {
   const metricCards = [
     { title: 'Total Pieces Sold', value: metrics.totalPieces, icon: <Package size={22} className="text-blue-500" />, bg: 'bg-blue-50 border-blue-100' },
     { title: 'Total Labels Required', value: metrics.totalLabels, icon: <FileText size={22} className="text-orange-500" />, bg: 'bg-orange-50 border-orange-100' },
-    { title: 'Total Revenue Today', value: formatIndianCurrency(metrics.totalRevenue), icon: <IndianRupee size={22} className="text-emerald-500" />, bg: 'bg-emerald-50 border-emerald-100', textClass: 'text-emerald-600' },
+    { title: 'Total Revenue', value: formatIndianCurrency(metrics.totalRevenue), icon: <IndianRupee size={22} className="text-emerald-500" />, bg: 'bg-emerald-50 border-emerald-100', textClass: 'text-emerald-600' },
     { title: 'Active Accounts', value: metrics.activeAccounts, icon: <Landmark size={22} className="text-violet-500" />, bg: 'bg-violet-50 border-violet-100' },
   ];
 
@@ -89,7 +90,7 @@ export default function Dashboard() {
           {/* Top Products Bar Chart */}
           <div className="bg-white border border-slate-200 rounded-lg p-6 lg:col-span-2 shadow-sm flex flex-col justify-between">
             <div className="mb-4">
-              <h3 className="text-md font-bold text-slate-800">Top 6 Products Today</h3>
+              <h3 className="text-md font-bold text-slate-800">Top 6 Products</h3>
               <p className="text-xs text-slate-400 font-medium">Pieces sold by product model</p>
             </div>
             
@@ -115,8 +116,8 @@ export default function Dashboard() {
           {/* Account Revenue Table */}
           <div className="bg-white border border-slate-200 rounded-lg p-6 shadow-sm flex flex-col justify-between">
             <div>
-              <h3 className="text-md font-bold text-slate-800">Account-wise Sales Today</h3>
-              <p className="text-xs text-slate-400 font-medium mb-4">Daily performance across channels</p>
+              <h3 className="text-md font-bold text-slate-800">Account-wise Sales</h3>
+              <p className="text-xs text-slate-400 font-medium mb-4">Total performance across channels</p>
             </div>
 
             <div className="overflow-y-auto flex-1 h-64 border border-slate-100 rounded">
@@ -146,7 +147,7 @@ export default function Dashboard() {
                 </table>
               ) : (
                 <div className="h-full flex items-center justify-center text-slate-400">
-                  No account activity today
+                  No account activity found
                 </div>
               )}
             </div>
@@ -156,8 +157,8 @@ export default function Dashboard() {
         {/* Labels Calculation Summary Table */}
         <div className="bg-white border border-slate-200 rounded-lg p-6 shadow-sm">
           <div className="mb-4">
-            <h3 className="text-md font-bold text-slate-800">Today's Label & Price Calculation Summary</h3>
-            <p className="text-xs text-slate-400 font-medium">Automatic billing breakdown for each transaction</p>
+            <h3 className="text-md font-bold text-slate-800">Label & Price Calculation Summary</h3>
+            <p className="text-xs text-slate-400 font-medium">Automatic billing breakdown for all transactions</p>
           </div>
 
           <div className="overflow-x-auto border border-slate-100 rounded">
@@ -196,7 +197,7 @@ export default function Dashboard() {
               </table>
             ) : (
               <div className="py-8 text-center text-slate-400">
-                No orders processed today. Upload daily PDF reports to calculate labels.
+                No orders processed yet. Upload PDF reports to calculate labels.
               </div>
             )}
           </div>

@@ -199,11 +199,13 @@ export default function DailyReport() {
           ))}
         </div>
 
+
+
         {/* Detailed Grid Table */}
         <div className="bg-white border border-slate-200 rounded-lg p-6 shadow-sm">
           <div className="mb-4">
-            <h3 className="text-md font-bold text-slate-800">Sales Records & Calculated Packing Labels</h3>
-            <p className="text-xs text-slate-400 font-medium">Platform matching entries sorted chronological</p>
+            <h3 className="text-md font-bold text-slate-800">SKU-Wise Sales Details & Packed Labels</h3>
+            <p className="text-xs text-slate-400 font-medium">Mapped entries grouped by marketplace SKU code</p>
           </div>
 
           <div className="overflow-x-auto border border-slate-100 rounded">
@@ -216,22 +218,24 @@ export default function DailyReport() {
                 <thead>
                   <tr className="bg-slate-50 border-b border-slate-200 text-slate-500 font-semibold uppercase">
                     <th className="py-3 px-4">Product Name</th>
+                    <th className="py-3 px-4 font-mono">SKU Code</th>
                     <th className="py-3 px-4">Category</th>
+                    <th className="py-3 px-4 text-center">Color</th>
                     <th className="py-3 px-4 text-center">Qty Sold</th>
-                    <th className="py-3 px-4 text-center">Labels/Unit</th>
-                    <th className="py-3 px-4 text-center">Total Labels Required</th>
-                    <th className="py-3 px-4 text-right">Price per Label (₹)</th>
+                    <th className="py-3 px-4 text-center">Total Labels</th>
+                    <th className="py-3 px-4 text-right">Price / Label (₹)</th>
                     <th className="py-3 px-4 text-right">Total Revenue (₹)</th>
                     <th className="py-3 px-4">Account Tags</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {tableRows.map((row) => (
-                    <tr key={row.id} className="border-b border-slate-100 hover:bg-slate-50/50">
+                  {tableRows.map((row, index) => (
+                    <tr key={index} className="border-b border-slate-100 hover:bg-slate-50/50">
                       <td className="py-3 px-4 font-bold text-slate-800">{row.product_name}</td>
+                      <td className="py-3 px-4 font-mono font-bold text-blue-600">{row.sku}</td>
                       <td className="py-3 px-4 text-slate-500 font-medium">{row.category}</td>
-                      <td className="py-3 px-4 text-center font-medium text-slate-650">{row.quantity}</td>
-                      <td className="py-3 px-4 text-center font-medium text-slate-650">{row.labels_per_unit}</td>
+                      <td className="py-3 px-4 text-center font-medium text-slate-600">{row.color || 'Assorted'}</td>
+                      <td className="py-3 px-4 text-center font-medium text-slate-700">{row.quantity}</td>
                       <td className="py-3 px-4 text-center font-bold text-blue-600">{row.total_labels}</td>
                       <td className="py-3 px-4 text-right font-medium text-slate-600">
                         {formatIndianCurrency(row.price)}
@@ -241,7 +245,7 @@ export default function DailyReport() {
                       </td>
                       <td className="py-3 px-4">
                         <div className="flex flex-col sm:flex-row gap-1.5 items-start sm:items-center">
-                          <span className="font-semibold text-slate-700 bg-slate-100 px-2 py-0.5 rounded text-[10px]">
+                          <span className="font-semibold text-slate-700 bg-slate-100 px-2 py-0.5 rounded text-[10px] max-w-[120px] truncate">
                             {row.account_name}
                           </span>
                           {getPlatformBadge(row.platform)}

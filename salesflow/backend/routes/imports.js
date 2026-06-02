@@ -140,36 +140,45 @@ router.post('/upload', upload.single('file'), async (req, res) => {
         });
 
         const price = accountPrice ? accountPrice.price : mapping.product.base_price;
-        const labels_total = 1; // 1 page/label per record
-        const quantity = getPcNumber(r.raw_sku); // e.g. 2 pieces for PC-2
-        const revenue = quantity * price; // pieces sold multiplied by price per piece
+        
+        const orderQtyFromPdf = r.quantity ? parseInt(r.quantity) : 1;
+        const parsedPcNumber = getPcNumber(r.raw_sku);
+        const pcMultiplier = mapping.quantity > 1 ? mapping.quantity : parsedPcNumber;
+        
+        const totalPieces = orderQtyFromPdf * pcMultiplier;
+        const revenue = totalPieces * price;
 
         resolvedRecords.push({
           raw_sku: r.raw_sku,
-          size: r.size || '',
-          color: r.color || '',
+          size: r.size || mapping.size_variant || '',
+          color: r.color || mapping.color_variant || '',
           mapped_product_id: mapping.product_id,
           mapped_product_name: mapping.product.name,
-          quantity: quantity, // e.g. 2
+          quantity: totalPieces,
           labels_per_unit: 1,
-          labels_total: 1,
-          price, // in paisa
-          revenue, // in paisa
+          labels_total: orderQtyFromPdf,
+          price,
+          revenue,
           date: recordDate,
           order_id: r.order_id,
           mapped: true
         });
       } else {
         unmappedSkus.add(r.raw_sku);
+        
+        const orderQtyFromPdf = r.quantity ? parseInt(r.quantity) : 1;
+        const parsedPcNumber = getPcNumber(r.raw_sku);
+        const totalPieces = orderQtyFromPdf * parsedPcNumber;
+
         resolvedRecords.push({
           raw_sku: r.raw_sku,
           size: r.size || '',
           color: r.color || '',
           mapped_product_id: null,
           mapped_product_name: 'UNMAPPED',
-          quantity: getPcNumber(r.raw_sku),
+          quantity: totalPieces,
           labels_per_unit: 1,
-          labels_total: 1,
+          labels_total: orderQtyFromPdf,
           price: 0,
           revenue: 0,
           date: recordDate,

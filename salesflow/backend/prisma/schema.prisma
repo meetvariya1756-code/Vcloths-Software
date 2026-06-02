@@ -36,6 +36,7 @@ model SkuMapping {
   color_variant   String?
   size_variant    String?
   platform        String   // meesho, flipkart, amazon
+  quantity        Int      @default(1)
   product         Product  @relation(fields: [product_id], references: [id], onDelete: Cascade)
 
   @@map("sku_mappings")

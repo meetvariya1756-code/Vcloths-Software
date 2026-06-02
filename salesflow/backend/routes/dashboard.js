@@ -4,28 +4,9 @@ const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 
 router.get('/summary', async (req, res) => {
-  const { date } = req.query;
-  
   try {
-    // 1. Get Today range in UTC/IST
-    let targetDate = new Date();
-    if (date && date !== 'today') {
-      targetDate = new Date(date);
-    }
-    
-    const startOfDay = new Date(targetDate);
-    startOfDay.setHours(0, 0, 0, 0);
-    const endOfDay = new Date(targetDate);
-    endOfDay.setHours(23, 59, 59, 999);
-
-    // 2. Fetch sales records for today
+    // 2. Fetch all sales records
     const salesRecords = await prisma.salesRecord.findMany({
-      where: {
-        date: {
-          gte: startOfDay,
-          lte: endOfDay
-        }
-      },
       include: {
         product: true,
         account: true

@@ -114,24 +114,52 @@ router.get('/daily', async (req, res) => {
       }
     });
 
+    // Fetch SKU mappings for color & size extraction
+    const mappings = await prisma.skuMapping.findMany();
+    const mappingsMap = new Map(mappings.map(m => [m.marketplace_sku.toLowerCase().trim(), m]));
+
     // Aggregates for Metric Cards
     let totalPieces = 0;
     let totalLabels = 0;
     let totalRevenue = 0n;
 
-    // Group records dynamically by their parent Grouped SKU
+    // Platform-wise Summary initialization
+    const platformSummary = {
+      meesho: { pieces: 0, labels: 0, revenue: 0n },
+      flipkart: { pieces: 0, labels: 0, revenue: 0n },
+      amazon: { pieces: 0, labels: 0, revenue: 0n }
+    };
+
+    // Group records dynamically by their marketplace SKU
     const grouped = {};
     for (const s of sales) {
-      const groupedSkuName = getGroupedSku(s.marketplace_sku);
-      
+      const skuKey = s.marketplace_sku.trim();
+      const accountId = s.account_id;
+      const groupKey = `${skuKey}_${accountId}`;
+
+      const mapping = mappingsMap.get(skuKey.toLowerCase());
+      const color = mapping ? mapping.color_variant || 'Assorted' : 'Assorted';
+      const size = mapping ? mapping.size_variant || 'Free' : 'Free';
+
       totalPieces += s.quantity;
       totalLabels += s.labels_total;
       totalRevenue += s.revenue;
 
-      if (!grouped[groupedSkuName]) {
-        grouped[groupedSkuName] = {
-          product_name: groupedSkuName,
+      // Platform summaries accumulation
+      const plat = s.account.platform.toLowerCase();
+      if (platformSummary[plat]) {
+        platformSummary[plat].pieces += s.quantity;
+        platformSummary[plat].labels += s.labels_total;
+        platformSummary[plat].revenue += s.revenue;
+      }
+
+      if (!grouped[groupKey]) {
+        grouped[groupKey] = {
+          product_name: s.product.name,
+          sku: skuKey,
           category: s.product.category,
+          color,
+          size,
           quantity: 0,
           labels_per_unit: s.product.labels_per_unit,
           total_labels: 0,
@@ -141,16 +169,19 @@ router.get('/daily', async (req, res) => {
         };
       }
       
-      grouped[groupedSkuName].quantity += s.quantity;
-      grouped[groupedSkuName].total_labels += s.labels_total;
-      grouped[groupedSkuName].revenue += s.revenue;
+      grouped[groupKey].quantity += s.quantity;
+      grouped[groupKey].total_labels += s.labels_total;
+      grouped[groupKey].revenue += s.revenue;
     }
 
     const tableData = Object.values(grouped).map(g => {
       const pricePerLabel = Number(g.revenue) / (g.total_labels || 1);
       return {
         product_name: g.product_name,
+        sku: g.sku,
         category: g.category,
+        color: g.color,
+        size: g.size,
         quantity: g.quantity,
         labels_per_unit: g.labels_per_unit,
         total_labels: g.total_labels,
@@ -163,6 +194,14 @@ router.get('/daily', async (req, res) => {
 
     const activeAccountsCount = await prisma.account.count({ where: { is_active: true } });
 
+    // Format platform summary for frontend
+    const platformList = Object.entries(platformSummary).map(([plat, metrics]) => ({
+      platform: plat.charAt(0).toUpperCase() + plat.slice(1),
+      pieces: metrics.pieces,
+      labels: metrics.labels,
+      revenue: Number(metrics.revenue)
+    }));
+
     res.json({
       metrics: {
         totalPieces,
@@ -170,6 +209,7 @@ router.get('/daily', async (req, res) => {
         totalRevenue: Number(totalRevenue),
         activeAccounts: activeAccountsCount
       },
+      platformSummary: platformList,
       table: tableData
     });
 
@@ -315,12 +355,18 @@ router.get('/daily/export', async (req, res) => {
       include: { product: true, account: true }
     });
 
+    const mappings = await prisma.skuMapping.findMany();
+    const mappingsMap = new Map(mappings.map(m => [m.marketplace_sku.toLowerCase().trim(), m]));
+
     const workbook = new ExcelJS.Workbook();
     const worksheet = workbook.addWorksheet('Daily Report');
 
     worksheet.columns = [
       { header: 'Product Name', key: 'product_name', width: 25 },
+      { header: 'SKU Code', key: 'sku', width: 20 },
       { header: 'Category', key: 'category', width: 15 },
+      { header: 'Color', key: 'color', width: 12 },
+      { header: 'Size', key: 'size', width: 10 },
       { header: 'Quantity', key: 'quantity', width: 10 },
       { header: 'Labels / Unit', key: 'labels_per_unit', width: 15 },
       { header: 'Total Labels', key: 'total_labels', width: 15 },
@@ -333,11 +379,21 @@ router.get('/daily/export', async (req, res) => {
     // Group sales records dynamically by parent SKU for the excel export
     const grouped = {};
     sales.forEach(s => {
-      const groupedSkuName = getGroupedSku(s.marketplace_sku);
-      if (!grouped[groupedSkuName]) {
-        grouped[groupedSkuName] = {
-          product_name: groupedSkuName,
+      const skuKey = s.marketplace_sku.trim();
+      const accountId = s.account_id;
+      const groupKey = `${skuKey}_${accountId}`;
+
+      const mapping = mappingsMap.get(skuKey.toLowerCase());
+      const color = mapping ? mapping.color_variant || 'Assorted' : 'Assorted';
+      const size = mapping ? mapping.size_variant || 'Free' : 'Free';
+
+      if (!grouped[groupKey]) {
+        grouped[groupKey] = {
+          product_name: s.product.name,
+          sku: skuKey,
           category: s.product.category,
+          color,
+          size,
           quantity: 0,
           labels_per_unit: s.product.labels_per_unit,
           total_labels: 0,
@@ -346,9 +402,9 @@ router.get('/daily/export', async (req, res) => {
           platform: s.account.platform
         };
       }
-      grouped[groupedSkuName].quantity += s.quantity;
-      grouped[groupedSkuName].total_labels += s.labels_total;
-      grouped[groupedSkuName].revenue += s.revenue;
+      grouped[groupKey].quantity += s.quantity;
+      grouped[groupKey].total_labels += s.labels_total;
+      grouped[groupKey].revenue += s.revenue;
     });
 
     Object.values(grouped).forEach(g => {
@@ -357,7 +413,10 @@ router.get('/daily/export', async (req, res) => {
 
       worksheet.addRow({
         product_name: g.product_name,
+        sku: g.sku,
         category: g.category,
+        color: g.color,
+        size: g.size,
         quantity: g.quantity,
         labels_per_unit: g.labels_per_unit,
         total_labels: g.total_labels,
