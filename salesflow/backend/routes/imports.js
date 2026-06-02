@@ -194,6 +194,14 @@ router.post('/upload', upload.single('file'), async (req, res) => {
       }));
 
       await prisma.$transaction(async (tx) => {
+        // Delete any existing sales records for this file and account first (to prevent duplicates!)
+        await tx.salesRecord.deleteMany({
+          where: {
+            source_pdf_name: filename,
+            account_id: accountId
+          }
+        });
+
         // Create sales records
         await tx.salesRecord.createMany({
           data: salesData
@@ -264,6 +272,10 @@ router.post('/:id/confirm', async (req, res) => {
       return res.status(404).json({ error: 'Import session not found' });
     }
 
+    if (pdfImport.status === 'done') {
+      return res.json({ success: true, message: 'This import has already been confirmed and saved.', count: records.length });
+    }
+
     // Double check that everything is mapped
     const unmapped = records.find(r => !r.mapped_product_id);
     if (unmapped) {
@@ -284,6 +296,14 @@ router.post('/:id/confirm', async (req, res) => {
     }));
 
     await prisma.$transaction(async (tx) => {
+      // Delete any existing sales records for this file and account first (failsafe!)
+      await tx.salesRecord.deleteMany({
+        where: {
+          source_pdf_name: pdfImport.filename,
+          account_id: pdfImport.account_id
+        }
+      });
+
       // Create sales records
       await tx.salesRecord.createMany({
         data: salesData
