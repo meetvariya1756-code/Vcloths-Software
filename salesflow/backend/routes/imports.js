@@ -315,10 +315,27 @@ router.post('/:id/confirm', async (req, res) => {
 router.delete('/:id', async (req, res) => {
   const { id } = req.params;
   try {
-    await prisma.pdfImport.delete({
+    const pdfImport = await prisma.pdfImport.findUnique({
       where: { id: parseInt(id) }
     });
-    res.json({ success: true, message: 'Import deleted successfully' });
+
+    if (pdfImport) {
+      await prisma.$transaction([
+        // Delete all sales records associated with this import file and account
+        prisma.salesRecord.deleteMany({
+          where: {
+            source_pdf_name: pdfImport.filename,
+            account_id: pdfImport.account_id
+          }
+        }),
+        // Delete the import session record itself
+        prisma.pdfImport.delete({
+          where: { id: parseInt(id) }
+        })
+      ]);
+    }
+
+    res.json({ success: true, message: 'Import and all associated sales records deleted successfully' });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to delete import: ' + err.message });
