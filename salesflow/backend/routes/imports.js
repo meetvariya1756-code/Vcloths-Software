@@ -103,6 +103,23 @@ router.post('/upload', upload.single('file'), async (req, res) => {
     // Clean up uploaded file
     fs.unlinkSync(req.file.path);
 
+    // Check for duplicate PDF upload by looking up unique order IDs in database
+    const orderIds = parsedRecords.map(r => r.order_id).filter(id => id && !id.startsWith('MOCK-'));
+    if (orderIds.length > 0) {
+      const duplicateRecord = await prisma.salesRecord.findFirst({
+        where: {
+          order_id: { in: orderIds }
+        }
+      });
+      if (duplicateRecord) {
+        // Update the import record to error/done or delete it, but return 400 immediately
+        await prisma.pdfImport.delete({
+          where: { id: pdfImport.id }
+        });
+        return res.status(400).json({ error: 'This PDF has already been added.' });
+      }
+    }
+
     // 4. Resolve SKU Mappings
     const resolvedRecords = [];
     const unmappedSkus = new Set();
@@ -172,7 +189,8 @@ router.post('/upload', upload.single('file'), async (req, res) => {
         quantity: parseInt(r.quantity),
         labels_total: parseInt(r.labels_total),
         revenue: BigInt(r.revenue),
-        source_pdf_name: filename
+        source_pdf_name: filename,
+        order_id: r.order_id
       }));
 
       await prisma.$transaction(async (tx) => {
@@ -261,7 +279,8 @@ router.post('/:id/confirm', async (req, res) => {
       quantity: parseInt(r.quantity),
       labels_total: parseInt(r.labels_total),
       revenue: BigInt(r.revenue),
-      source_pdf_name: pdfImport.filename
+      source_pdf_name: pdfImport.filename,
+      order_id: r.order_id
     }));
 
     await prisma.$transaction(async (tx) => {
