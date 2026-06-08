@@ -232,35 +232,18 @@ router.post('/upload-excel', upload.single('file'), async (req, res) => {
     const sizeIdx = getColIndex(['size']);
     const platformIdx = getColIndex(['platform', 'channel']);
 
-    const getProductNameFromSku = (sku) => {
-      const upper = sku.toUpperCase().trim();
-      if (upper.includes('STRIP-SH-WB')) return 'Stripe Shorts';
-      if (upper.includes('CORD-SH')) return 'Cord Shorts';
-      if (upper.includes('SHPC') || upper.includes('SORT') || upper.includes('SHORTS') || upper.includes('SH-')) return 'Shorts';
-      if (upper.includes('ZIPER-TRACK') || upper.includes('ZIPPER-TRACK')) return 'Zipper Track';
-      if (upper.includes('3-PATTI-TRACK')) return '3 Patti Track';
-      if (upper.includes('KIDS-TRACK')) return 'Kids Track';
-      if (upper.includes('TRACK-PC')) return 'Track Pants';
-      if (upper.includes('KIDS-BARFI') || upper.includes('KIDS-BURFI')) return 'Kids Barfi';
-      if (upper.includes('BARFI') || upper.includes('BURFI')) return 'Barfi';
-      if (upper.includes('LDS-WB')) return 'Ladies WB';
-      if (upper.includes('LDS-GB')) return 'Ladies GB';
-      if (upper.includes('MEN-WB')) return 'Men WB';
-      if (upper.includes('MEN-GB')) return 'Men GB';
-      if (upper.includes('KIDS-WB')) return 'Kids WB';
-      if (upper.includes('KIDS-GB')) return 'Kids GB';
-      
-      const parts = sku.split(/[-_]/);
-      if (parts.length > 0 && parts[0].length >= 3) {
-        return parts[0] + ' Product';
-      }
-      return 'General Product';
-    };
+    // Check mandatory columns presence in header
+    const missingColumns = [];
+    if (skuIdx === -1) missingColumns.push('SKU Code');
+    if (productNameIdx === -1) missingColumns.push('Product Title');
+    if (qtyIdx === -1) missingColumns.push('Quantity');
+    if (colorIdx === -1) missingColumns.push('Color');
+    if (sizeIdx === -1) missingColumns.push('Size');
 
-    if (skuIdx === -1) {
+    if (missingColumns.length > 0) {
       if (fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
       return res.status(400).json({
-        error: 'Missing required columns. Please ensure your Excel contains a "SKU Code" (or Product ID, Style ID, SKU ID) header.'
+        error: `Missing required columns. Please ensure your Excel contains the following headers: ${missingColumns.join(', ')}.`
       });
     }
 
@@ -273,35 +256,46 @@ router.post('/upload-excel', upload.single('file'), async (req, res) => {
     for (let r = bestHeaderRowIndex + 1; r <= worksheet.rowCount; r++) {
       const row = worksheet.getRow(r);
       const marketplace_sku = getCellValue(row.getCell(skuIdx), true).trim();
-      if (!marketplace_sku) {
+      const productName = getCellValue(row.getCell(productNameIdx), true).trim();
+      const color = getCellValue(row.getCell(colorIdx), true).trim();
+      const size = getCellValue(row.getCell(sizeIdx), true).trim();
+      const qVal = getCellValue(row.getCell(qtyIdx), false);
+      const rawPlatform = platformIdx !== -1 ? getCellValue(row.getCell(platformIdx), true).trim() || 'meesho' : 'meesho';
+      const platform = rawPlatform.toLowerCase();
+
+      // If the entire row is completely empty, we can skip it.
+      if (!marketplace_sku && !productName && !color && !size && !qVal) {
         skippedCount++;
         continue;
       }
 
-      let productName = '';
-      if (productNameIdx !== -1) {
-        productName = getCellValue(row.getCell(productNameIdx), true).trim();
-      }
-      if (!productName) {
-        productName = getProductNameFromSku(marketplace_sku);
-      }
+      // Validate mandatory fields
+      const missingFields = [];
+      if (!marketplace_sku) missingFields.push('SKU');
+      if (!productName) missingFields.push('Product Title');
+      if (!color) missingFields.push('Color');
+      if (!size) missingFields.push('Size');
 
-      // Quantity multiplier
-      let quantity = 1;
-      if (qtyIdx !== -1) {
-        const qVal = getCellValue(row.getCell(qtyIdx), false);
-        if (qVal) {
-          const parsedQty = parseInt(qVal);
-          if (!isNaN(parsedQty) && parsedQty > 0) {
-            quantity = parsedQty;
-          }
+      let quantity = 0;
+      if (!qVal) {
+        missingFields.push('Quantity');
+      } else {
+        const parsedQty = parseInt(qVal);
+        if (isNaN(parsedQty) || parsedQty <= 0) {
+          missingFields.push('Valid Quantity (> 0)');
+        } else {
+          quantity = parsedQty;
         }
       }
 
-      const color = colorIdx !== -1 ? getCellValue(row.getCell(colorIdx), true).trim() || null : null;
-      const size = sizeIdx !== -1 ? getCellValue(row.getCell(sizeIdx), true).trim() || null : null;
-      const rawPlatform = platformIdx !== -1 ? getCellValue(row.getCell(platformIdx), true).trim() || 'meesho' : 'meesho';
-      const platform = rawPlatform.toLowerCase();
+      if (missingFields.length > 0) {
+        errors.push({
+          row: r,
+          sku: marketplace_sku || 'N/A',
+          error: `Missing mandatory values: ${missingFields.join(', ')}`
+        });
+        continue;
+      }
 
       try {
         // Find or dynamically create product

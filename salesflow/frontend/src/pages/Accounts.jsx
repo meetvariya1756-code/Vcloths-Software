@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Landmark, Plus, Search, ChevronDown, ChevronUp, Edit3, Settings2 } from 'lucide-react';
+import { Landmark, Plus, Search, ChevronDown, ChevronUp, Edit3, Settings2, Trash2 } from 'lucide-react';
 import api from '../api';
 import Header from '../components/Header';
 import { formatIndianCurrency, getPlatformBadge } from './Dashboard';
@@ -95,6 +95,21 @@ export default function Accounts() {
     }
   };
 
+  const handleDeleteAccount = async (id, name) => {
+    if (window.confirm(`Are you sure you want to delete account "${name}"? This will permanently delete all associated sales records, price overrides, and PDF imports.`)) {
+      try {
+        await api.delete(`/accounts/${id}`);
+        fetchAccounts();
+        if (expandedAccountId === id) {
+          setExpandedAccountId(null);
+          setExpandedDetails(null);
+        }
+      } catch (err) {
+        alert(err.response?.data?.error || 'Failed to delete account');
+      }
+    }
+  };
+
   const filteredAccounts = accounts.filter(a => 
     a.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     a.platform.toLowerCase().includes(searchQuery.toLowerCase())
@@ -137,6 +152,7 @@ export default function Accounts() {
                 <th className="py-3.5 px-4">Sales Platform</th>
                 <th className="py-3.5 px-4">Status</th>
                 <th className="py-3.5 px-6">Notes</th>
+                <th className="py-3.5 px-6 text-right">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -169,12 +185,24 @@ export default function Accounts() {
                     <td className="py-4 px-6 text-slate-450 italic font-medium">
                       {acc.notes || <span className="text-slate-300 font-normal">No notes written</span>}
                     </td>
+                    <td className="py-4 px-6 text-right">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteAccount(acc.id, acc.name);
+                        }}
+                        className="p-1.5 text-red-500 hover:text-red-700 hover:bg-red-50 rounded transition-all inline-block"
+                        title="Delete Account"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </td>
                   </tr>
 
                   {/* Expand Row */}
                   {expandedAccountId === acc.id && (
                     <tr>
-                      <td colSpan={4} className="bg-slate-50/50 p-6 border-b border-slate-200">
+                      <td colSpan={5} className="bg-slate-50/50 p-6 border-b border-slate-200">
                         {loadingDetails ? (
                           <div className="py-6 text-center text-xs text-slate-400 font-semibold animate-pulse">
                             Loading Account pricing overrides & statistics...

@@ -42,9 +42,9 @@ export default function BulkAddSku() {
       setUploadResult({ success: true, data: response.data });
     } catch (err) {
       console.error(err);
-      setUploadResult({ 
-        success: false, 
-        error: err.response?.data?.error || 'Failed to upload Excel file' 
+      setUploadResult({
+        success: false,
+        error: err.response?.data?.error || 'Failed to upload Excel file'
       });
     } finally {
       setLoading(false);
@@ -62,40 +62,39 @@ export default function BulkAddSku() {
   return (
     <div className="flex-1 bg-slate-50 min-h-screen pb-10">
       <Header title="Bulk Add SKU" />
-      
+
       <div className="p-8 max-w-5xl mx-auto space-y-6">
-        
+
         <div className="bg-white border border-slate-200 rounded-lg p-6 shadow-sm">
           <h2 className="text-lg font-bold text-slate-800 mb-2">Upload Master SKU Excel</h2>
           <p className="text-sm text-slate-500 mb-6">
-            Upload an Excel file (.xlsx) containing your master SKU list. The system will automatically detect SKUs, Product Names, Quantity, Color, Size, and Platform to sync mappings instantly.
+            Upload an Excel file (.xlsx) containing your master SKU list. The system will sync mappings instantly. <strong className="text-slate-700">Required columns: Product Name, SKU, Quantity, Color, and Size.</strong>
           </p>
 
           {!uploadResult?.success ? (
             <div className="space-y-4">
-              <div 
-                className={`border-2 border-dashed rounded-lg p-10 flex flex-col items-center justify-center text-center transition-all ${
-                  file ? 'border-blue-400 bg-blue-50/50' : 'border-slate-300 bg-slate-50 hover:bg-slate-100 hover:border-slate-400'
-                }`}
+              <div
+                className={`border-2 border-dashed rounded-lg p-10 flex flex-col items-center justify-center text-center transition-all ${file ? 'border-blue-400 bg-blue-50/50' : 'border-slate-300 bg-slate-50 hover:bg-slate-100 hover:border-slate-400'
+                  }`}
                 onDragOver={handleDragOver}
                 onDrop={handleDrop}
                 onClick={() => fileInputRef.current?.click()}
                 style={{ cursor: 'pointer' }}
               >
-                <input 
-                  type="file" 
+                <input
+                  type="file"
                   ref={fileInputRef}
-                  className="hidden" 
+                  className="hidden"
                   accept=".xlsx, .xls"
                   onChange={handleFileChange}
                 />
-                
+
                 {file ? (
                   <>
                     <FileSpreadsheet size={48} className="text-blue-500 mb-4" />
                     <p className="text-sm font-semibold text-slate-700">{file.name}</p>
                     <p className="text-xs text-slate-500 mt-1">{(file.size / 1024).toFixed(2)} KB</p>
-                    <button 
+                    <button
                       onClick={(e) => { e.stopPropagation(); resetUpload(); }}
                       className="mt-4 text-xs font-medium text-red-500 hover:text-red-600 hover:underline"
                     >
@@ -115,11 +114,10 @@ export default function BulkAddSku() {
                 <button
                   onClick={handleUpload}
                   disabled={!file || loading}
-                  className={`flex items-center gap-2 px-6 py-2.5 rounded font-semibold text-white transition-all shadow-sm ${
-                    !file || loading 
-                      ? 'bg-slate-300 cursor-not-allowed' 
-                      : 'bg-blue-600 hover:bg-blue-700'
-                  }`}
+                  className={`flex items-center gap-2 px-6 py-2.5 rounded font-semibold text-white transition-all shadow-sm ${!file || loading
+                    ? 'bg-slate-300 cursor-not-allowed'
+                    : 'bg-blue-600 hover:bg-blue-700'
+                    }`}
                 >
                   {loading ? (
                     <>
@@ -173,7 +171,7 @@ export default function BulkAddSku() {
 
               <div className="flex justify-between items-center">
                 <h3 className="text-md font-bold text-slate-800">Successfully Mapped SKUs</h3>
-                <button 
+                <button
                   onClick={resetUpload}
                   className="text-sm font-medium text-blue-600 hover:text-blue-700 hover:underline"
                 >
@@ -218,7 +216,7 @@ export default function BulkAddSku() {
                   </tbody>
                 </table>
               </div>
-              
+
               {uploadResult.data.errors && uploadResult.data.errors.length > 0 && (
                 <div className="mt-8">
                   <h3 className="text-md font-bold text-red-700 mb-4 flex items-center gap-2">

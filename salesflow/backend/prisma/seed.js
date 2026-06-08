@@ -28,11 +28,18 @@ async function main() {
 
   const products = [];
   for (const p of productsData) {
-    const prod = await prisma.product.create({
-      data: p
+    let prod = await prisma.product.findFirst({
+      where: { name: p.name }
     });
+    if (!prod) {
+      prod = await prisma.product.create({
+        data: p
+      });
+      console.log(`Created product: ${prod.name}`);
+    } else {
+      console.log(`Product already exists: ${prod.name}`);
+    }
     products.push(prod);
-    console.log(`Created product: ${prod.name}`);
   }
 
   // Find products by name for mapping
@@ -73,15 +80,25 @@ async function main() {
 
   const accounts = [];
   for (const acc of accountsData) {
-    const account = await prisma.account.create({
-      data: {
+    let account = await prisma.account.findFirst({
+      where: {
         name: acc.name,
-        platform: acc.platform,
-        is_active: true
+        platform: acc.platform
       }
     });
+    if (!account) {
+      account = await prisma.account.create({
+        data: {
+          name: acc.name,
+          platform: acc.platform,
+          is_active: true
+        }
+      });
+      console.log(`Created account: ${account.name} [${acc.platform}]`);
+    } else {
+      console.log(`Account already exists: ${account.name} [${acc.platform}]`);
+    }
     accounts.push(account);
-    console.log(`Created account: ${account.name} [${acc.platform}]`);
   }
 
   // SKU Mappings
@@ -99,10 +116,17 @@ async function main() {
   ];
 
   for (const m of mappings) {
-    await prisma.skuMapping.create({
-      data: m
+    const existing = await prisma.skuMapping.findUnique({
+      where: { marketplace_sku: m.marketplace_sku }
     });
-    console.log(`Created mapping: ${m.marketplace_sku} -> Product ID ${m.product_id}`);
+    if (!existing) {
+      await prisma.skuMapping.create({
+        data: m
+      });
+      console.log(`Created mapping: ${m.marketplace_sku} -> Product ID ${m.product_id}`);
+    } else {
+      console.log(`Mapping already exists: ${m.marketplace_sku}`);
+    }
   }
 
   console.log('Seeding complete!');

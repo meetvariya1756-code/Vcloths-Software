@@ -58,9 +58,8 @@ export default function Dashboard() {
 
   const metricCards = [
     { title: 'Total Pieces Sold', value: metrics.totalPieces, icon: <Package size={22} className="text-blue-500" />, bg: 'bg-blue-50 border-blue-100' },
-    { title: 'Total Labels Required', value: metrics.totalLabels, icon: <FileText size={22} className="text-orange-500" />, bg: 'bg-orange-50 border-orange-100' },
-    { title: 'Total Revenue', value: formatIndianCurrency(metrics.totalRevenue), icon: <IndianRupee size={22} className="text-emerald-500" />, bg: 'bg-emerald-50 border-emerald-100', textClass: 'text-emerald-600' },
-    { title: 'Active Accounts', value: metrics.activeAccounts, icon: <Landmark size={22} className="text-violet-500" />, bg: 'bg-violet-50 border-violet-100' },
+    { title: 'Total Account Revenue', value: formatIndianCurrency(metrics.totalRevenue), icon: <IndianRupee size={22} className="text-emerald-500" />, bg: 'bg-emerald-50 border-emerald-100', textClass: 'text-emerald-600' },
+    { title: 'Total Accounts', value: metrics.activeAccounts, icon: <Landmark size={22} className="text-violet-500" />, bg: 'bg-violet-50 border-violet-100' },
   ];
 
   return (
@@ -70,7 +69,7 @@ export default function Dashboard() {
       <div className="p-8 space-y-8 max-w-7xl mx-auto">
         
         {/* Metric Cards Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {metricCards.map((card, idx) => (
             <div key={idx} className={`p-6 bg-white border border-slate-200 rounded-lg flex items-center justify-between shadow-sm`}>
               <div className="space-y-1">
@@ -154,54 +153,7 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Labels Calculation Summary Table */}
-        <div className="bg-white border border-slate-200 rounded-lg p-6 shadow-sm">
-          <div className="mb-4">
-            <h3 className="text-md font-bold text-slate-800">Label & Price Calculation Summary</h3>
-            <p className="text-xs text-slate-400 font-medium">Automatic billing breakdown for all transactions</p>
-          </div>
 
-          <div className="overflow-x-auto border border-slate-100 rounded">
-            {labelsSummary.length > 0 ? (
-              <table className="w-full text-left text-xs border-collapse">
-                <thead>
-                  <tr className="bg-slate-50 border-b border-slate-200 text-slate-500 font-semibold uppercase">
-                    <th className="py-3 px-4">Marketplace SKU</th>
-                    <th className="py-3 px-4">Product Name</th>
-                    <th className="py-3 px-4 text-center">Qty Sold</th>
-                    <th className="py-3 px-4 text-center">Labels/Unit</th>
-                    <th className="py-3 px-4 text-center">Total Labels</th>
-                    <th className="py-3 px-4 text-right">Price per Label</th>
-                    <th className="py-3 px-4 text-right">Total Revenue</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {labelsSummary.map((item) => (
-                    <tr key={item.id} className="border-b border-slate-100 hover:bg-slate-50/50">
-                      <td className="py-3 px-4 font-mono font-medium">
-                        <span className="sku-badge">{item.sku}</span>
-                      </td>
-                      <td className="py-3 px-4 text-slate-800 font-semibold">{item.productName}</td>
-                      <td className="py-3 px-4 text-center font-medium text-slate-600">{item.qtySold}</td>
-                      <td className="py-3 px-4 text-center font-medium text-slate-600">{item.labelsPerUnit}</td>
-                      <td className="py-3 px-4 text-center font-bold text-blue-600">{item.totalLabels}</td>
-                      <td className="py-3 px-4 text-right font-medium text-slate-600">
-                        {formatIndianCurrency(item.price)}
-                      </td>
-                      <td className="py-3 px-4 text-right font-bold text-emerald-600">
-                        {formatIndianCurrency(item.revenue)}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            ) : (
-              <div className="py-8 text-center text-slate-400">
-                No orders processed yet. Upload PDF reports to calculate labels.
-              </div>
-            )}
-          </div>
-        </div>
 
       </div>
     </div>
