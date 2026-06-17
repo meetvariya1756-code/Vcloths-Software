@@ -1,8 +1,8 @@
 const skuPatterns = [
-  // 1. Shorts Category
+  // 1. Shorts Category — pack-size-specific rules (evaluated before generic fallback)
   { name: 'Stripe Shorts', pattern: /STRIP-SH-WB/i, price: 13000, category: 'Shorts', labels_per_unit: 4 },
-  { name: 'Cord Shorts', pattern: /CORD-SH/i, price: 16000, category: 'Shorts', labels_per_unit: 4 },
-  { name: 'Shorts', pattern: /(SHPC|SORT|SHORTS|SH-)/i, price: 8000, category: 'Shorts', labels_per_unit: 4 },
+  { name: 'Cord Shorts',   pattern: /CORD-SH/i,    price: 16000, category: 'Shorts', labels_per_unit: 4 },
+  // NOTE: Generic Shorts pattern removed — pack-size routing is handled by detectShortsPackCount().
 
   // 2. Track Category
   { name: 'Zipper Track', pattern: /ZIPER-TRACK/i, price: 17500, category: 'Track', labels_per_unit: 4 },
@@ -86,7 +86,52 @@ async function findBestSkuMapping(prisma, rawSku) {
     }
   }
 
-  // Handle BARFI products explicitly and map to correct pack-specific product
+  // ── Handle SHORTS products — route to correct Shorts PC-X pack-size product ──
+  const isShortsSkU = /SHPC|SH-P[1-4]|SHORTS/i.test(sku);
+  if (isShortsSkU && !/(STRIP|CORD)/i.test(sku)) {
+    let packCount = 1;
+    // SHPC-X or SHPCX
+    const shpcMatch = sku.match(/SHPC[-_]?([1-4])/i);
+    if (shpcMatch) {
+      packCount = parseInt(shpcMatch[1]);
+    } else {
+      // SH-PX
+      const shpMatch = sku.match(/SH-P([1-4])/i);
+      if (shpMatch) packCount = parseInt(shpMatch[1]);
+    }
+    // Clamp to 1-4
+    packCount = Math.min(4, Math.max(1, packCount));
+
+    const targetName = `Shorts PC-${packCount} (Pack of ${packCount} Piece${packCount > 1 ? 's' : ''})`;
+    let product = await prisma.product.findFirst({ where: { name: targetName } });
+    if (!product) {
+      product = await prisma.product.create({
+        data: {
+          name: targetName,
+          category: 'Shorts',
+          labels_per_unit: packCount,
+          base_price: 8000
+        }
+      });
+    }
+
+    const existingMapping = allMappings.find(m => m.marketplace_sku.toLowerCase() === lowerSku);
+    if (existingMapping) return existingMapping;
+
+    const newMapping = await prisma.skuMapping.create({
+      data: {
+        marketplace_sku: sku,
+        product_id: product.id,
+        platform: 'meesho',
+        color_variant: 'Assorted',
+        size_variant: 'Free'
+      },
+      include: { product: true }
+    });
+    return newMapping;
+  }
+
+  // ── Handle BARFI products — route to correct BARFI-PC-X pack-size product ──
   if (cleanSku.includes('barfi') || cleanSku.includes('burfi')) {
     let packSize = 1;
     const pcMatch = sku.match(/PC[-_]?([1-3])/i);
@@ -105,9 +150,7 @@ async function findBestSkuMapping(prisma, rawSku) {
     }
 
     const targetName = `BARFI-PC-${packSize} (Pack of ${packSize} Piece${packSize > 1 ? 's' : ''})`;
-    let product = await prisma.product.findFirst({
-      where: { name: targetName }
-    });
+    let product = await prisma.product.findFirst({ where: { name: targetName } });
     if (!product) {
       product = await prisma.product.create({
         data: {
@@ -119,11 +162,9 @@ async function findBestSkuMapping(prisma, rawSku) {
       });
     }
 
-    // Try case-insensitive matching first to find if there's already a mapping for this SKU
     const existingMapping = allMappings.find(m => m.marketplace_sku.toLowerCase() === lowerSku);
     if (existingMapping) return existingMapping;
 
-    // Create SkuMapping
     const newMapping = await prisma.skuMapping.create({
       data: {
         marketplace_sku: sku,
@@ -134,7 +175,6 @@ async function findBestSkuMapping(prisma, rawSku) {
       },
       include: { product: true }
     });
-
     return newMapping;
   }
 

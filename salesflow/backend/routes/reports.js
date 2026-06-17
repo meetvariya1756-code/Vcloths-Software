@@ -33,6 +33,12 @@ function getStandardizedSku(sku, productName) {
     return "BARFI-PC-1";
   }
 
+  // If it's a Shorts PC-X product (new pack-size naming), read pack count from product name
+  if (pName.match(/^shorts pc-(\d)/)) {
+    const match = pName.match(/^shorts pc-(\d)/);
+    if (match) return `SHPC-${match[1]}`;
+  }
+
   // 1. Determine base prefix from product name
   let basePrefix = 'OTHER';
   if (pName.includes('stripe shorts')) {
