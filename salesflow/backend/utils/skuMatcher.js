@@ -10,9 +10,7 @@ const skuPatterns = [
   { name: 'Kids Track', pattern: /KIDS-TRACK/i, price: 10500, category: 'Track', labels_per_unit: 2 },
   { name: 'Track Pants', pattern: /TRACK-PC/i, price: 10500, category: 'Track', labels_per_unit: 4 },
 
-  // 3. Barfi Category
-  { name: 'Kids Barfi', pattern: /KIDS-B[AU]RFI/i, price: 11000, category: 'Barfi', labels_per_unit: 2 },
-  { name: 'Barfi', pattern: /B[AU]RFI/i, price: 11000, category: 'Barfi', labels_per_unit: 4 },
+
 
   // 4. Ladies Category
   { name: 'Ladies WB', pattern: /LDS-WB/i, price: 16500, category: 'Ladies', labels_per_unit: 4 },
@@ -88,6 +86,58 @@ async function findBestSkuMapping(prisma, rawSku) {
     }
   }
 
+  // Handle BARFI products explicitly and map to correct pack-specific product
+  if (cleanSku.includes('barfi') || cleanSku.includes('burfi')) {
+    let packSize = 1;
+    const pcMatch = sku.match(/PC[-_]?([1-3])/i);
+    if (pcMatch) {
+      packSize = parseInt(pcMatch[1]);
+    } else if (sku.includes('+')) {
+      const parts = sku.split('+');
+      if (parts.length >= 1 && parts.length <= 3) {
+        packSize = parts.length;
+      }
+    } else {
+      const endMatch = sku.match(/[-_]([1-3])$/);
+      if (endMatch) {
+        packSize = parseInt(endMatch[1]);
+      }
+    }
+
+    const targetName = `BARFI-PC-${packSize} (Pack of ${packSize} Piece${packSize > 1 ? 's' : ''})`;
+    let product = await prisma.product.findFirst({
+      where: { name: targetName }
+    });
+    if (!product) {
+      product = await prisma.product.create({
+        data: {
+          name: targetName,
+          category: 'Barfi',
+          labels_per_unit: packSize,
+          base_price: 11000
+        }
+      });
+    }
+
+    // Try case-insensitive matching first to find if there's already a mapping for this SKU
+    const existingMapping = allMappings.find(m => m.marketplace_sku.toLowerCase() === lowerSku);
+    if (existingMapping) return existingMapping;
+
+    // Create SkuMapping
+    const newMapping = await prisma.skuMapping.create({
+      data: {
+        marketplace_sku: sku,
+        product_id: product.id,
+        platform: 'meesho',
+        color_variant: 'Assorted',
+        size_variant: 'Free'
+      },
+      include: { product: true }
+    });
+
+    return newMapping;
+  }
+
   // 5. Try keyword Fallback Matcher (e.g., matching common descriptions to products)
   const products = await prisma.product.findMany();
   for (const p of products) {
@@ -101,8 +151,7 @@ async function findBestSkuMapping(prisma, rawSku) {
       (cleanSku.includes("short") && nameLower.includes("shorts")) || // "Shorts PC-3"
       (cleanSku.includes("track pants") && nameLower.includes("gb")) || 
       (cleanSku.includes("baggy") && nameLower.includes("gb")) ||
-      (cleanSku.includes("boxer") && nameLower.includes("boxer")) ||
-      (cleanSku.includes("barfi") && nameLower.includes("barfi"))
+      (cleanSku.includes("boxer") && nameLower.includes("boxer"))
     ) {
       const associatedMapping = allMappings.find(m => m.product_id === p.id);
       if (associatedMapping) {

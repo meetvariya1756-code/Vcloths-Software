@@ -1,18 +1,16 @@
 /**
  * meesho-scraper.js
- * Real Meesho Supplier Panel scraper using Puppeteer browser automation.
- * Logs into supplier.meesho.com and extracts catalog listings + SKU variants.
+ * Upgraded Meesho Supplier Panel scraper using Puppeteer and session-intercepted programmatic API fetches.
+ * Logs in, extracts cookies and session headers, and fetches all catalog variants (Active, Paused, Blocked)
+ * directly from the panel APIs to support very large supplier inventories efficiently.
  */
 
 const puppeteer = require('puppeteer');
 
-const MEESHO_SUPPLIER_URL = 'https://supplier.meesho.com';
 const MEESHO_LOGIN_URL = 'https://supplier.meesho.com/panel/v3/new/root/login';
-const MEESHO_CATALOG_URL = 'https://supplier.meesho.com/catalog/';
 
 /**
- * Launch Puppeteer with sensible defaults.
- * headless: 'new' is the stable modern headless mode.
+ * Launch Puppeteer with stable defaults.
  */
 async function launchBrowser() {
   const browser = await puppeteer.launch({
@@ -21,9 +19,6 @@ async function launchBrowser() {
       '--no-sandbox',
       '--disable-setuid-sandbox',
       '--disable-dev-shm-usage',
-      '--disable-accelerated-2d-canvas',
-      '--no-first-run',
-      '--no-zygote',
       '--disable-gpu',
       '--window-size=1280,800'
     ],
@@ -34,16 +29,11 @@ async function launchBrowser() {
 
 /**
  * Log in to Meesho Supplier Panel.
- * @param {import('puppeteer').Browser} browser
- * @param {string} meeshoId  - Phone number or supplier ID
- * @param {string} password  - Account password
- * @param {Function} onStep  - Progress callback(stepNumber, message)
- * @returns {import('puppeteer').Page} Logged-in page instance
  */
 async function loginToMeesho(browser, meeshoId, password, onStep) {
   const page = await browser.newPage();
 
-  // Set a real-looking user agent to avoid basic bot detection
+  // Set real-looking user agent
   await page.setUserAgent(
     'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
   );
@@ -51,12 +41,10 @@ async function loginToMeesho(browser, meeshoId, password, onStep) {
   onStep(1, 'Opening Meesho Supplier login page...');
   await page.goto(MEESHO_LOGIN_URL, { waitUntil: 'networkidle2', timeout: 30000 });
 
-  // Small human-like delay
   await delay(800);
 
   onStep(2, 'Entering Meesho credentials...');
 
-  // ── Phone / User ID field ──
   const phoneSelectors = [
     'input[placeholder*="Email" i]',
     'input[placeholder*="mobile" i]',
@@ -65,8 +53,6 @@ async function loginToMeesho(browser, meeshoId, password, onStep) {
     'input[type="tel"]',
     'input[type="text"]',
     'input[name="phone"]',
-    'input[id*="phone"]',
-    'input[id*="mobile"]',
     'input'
   ];
 
@@ -76,17 +62,17 @@ async function loginToMeesho(browser, meeshoId, password, onStep) {
       await page.waitForSelector(sel, { timeout: 5000 });
       phoneInput = await page.$(sel);
       if (phoneInput) break;
-    } catch (_) { /* try next selector */ }
+    } catch (_) {}
   }
 
   if (!phoneInput) {
-    throw new Error('Could not find phone/ID input on Meesho login page. The login page layout may have changed.');
+    throw new Error('Could not find email/phone input on Meesho login page.');
   }
 
   await phoneInput.click({ clickCount: 3 });
   await phoneInput.type(meeshoId.trim(), { delay: 80 });
 
-  // Some Meesho versions show a "Continue" button before password
+  // Handle optional Next/Continue buttons
   let continueBtn = null;
   try {
     const btnHandle = await page.evaluateHandle(() => {
@@ -97,10 +83,7 @@ async function loginToMeesho(browser, meeshoId, password, onStep) {
       });
     });
     if (btnHandle) {
-      const element = btnHandle.asElement();
-      if (element) {
-        continueBtn = element;
-      }
+      continueBtn = btnHandle.asElement();
     }
   } catch (_) {}
 
@@ -118,11 +101,10 @@ async function loginToMeesho(browser, meeshoId, password, onStep) {
     }
   }
 
-  // ── Password field ──
+  // Password input
   const passwordSelectors = [
     'input[type="password"]',
     'input[placeholder*="Password" i]',
-    'input[placeholder*="password" i]',
     'input[name="password"]'
   ];
 
@@ -132,7 +114,7 @@ async function loginToMeesho(browser, meeshoId, password, onStep) {
       await page.waitForSelector(sel, { timeout: 8000 });
       passwordInput = await page.$(sel);
       if (passwordInput) break;
-    } catch (_) { /* try next */ }
+    } catch (_) {}
   }
 
   if (!passwordInput) {
@@ -143,12 +125,9 @@ async function loginToMeesho(browser, meeshoId, password, onStep) {
   await passwordInput.type(password.trim(), { delay: 70 });
   await delay(400);
 
-  onStep(2, 'Submitting login form...');
+  onStep(2, 'Submitting login...');
 
-  // ── Submit login ──
   let loginBtn = null;
-  
-  // Try to find by text content "Log in", "Login", "Sign In" using page.evaluateHandle
   try {
     const btnHandle = await page.evaluateHandle(() => {
       const buttons = Array.from(document.querySelectorAll('button'));
@@ -158,28 +137,9 @@ async function loginToMeesho(browser, meeshoId, password, onStep) {
       });
     });
     if (btnHandle) {
-      const element = btnHandle.asElement();
-      if (element) {
-        loginBtn = element;
-      }
+      loginBtn = btnHandle.asElement();
     }
-  } catch (err) {
-    console.error('Error finding button via evaluateHandle:', err);
-  }
-
-  // Fallback to selectors if evaluateHandle failed to find
-  if (!loginBtn) {
-    const loginBtnSelectors = [
-      'button[type="submit"]',
-      'button'
-    ];
-    for (const sel of loginBtnSelectors) {
-      try {
-        loginBtn = await page.$(sel);
-        if (loginBtn) break;
-      } catch (_) {}
-    }
-  }
+  } catch (_) {}
 
   if (loginBtn) {
     await loginBtn.click();
@@ -187,18 +147,13 @@ async function loginToMeesho(browser, meeshoId, password, onStep) {
     await page.keyboard.press('Enter');
   }
 
-  // Wait for navigation away from login page (indicates success)
-  onStep(2, 'Verifying login...');
+  onStep(2, 'Verifying login redirect...');
   try {
     await page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 20000 });
-  } catch (e) {
-    // Sometimes Meesho uses client-side routing — check URL instead
-  }
+  } catch (_) {}
 
-  // Check if we are still on the login page (login failed)
   const currentUrl = page.url();
   if (currentUrl.includes('/login')) {
-    // Look for error messages
     const errorText = await page.evaluate(() => {
       const errorEl = document.querySelector('[class*="error"], [class*="Error"], .MuiFormHelperText-root');
       return errorEl ? errorEl.textContent : null;
@@ -206,7 +161,7 @@ async function loginToMeesho(browser, meeshoId, password, onStep) {
     throw new Error(
       errorText
         ? `Meesho login failed: ${errorText}`
-        : 'Meesho login failed. Please check your credentials and try again.'
+        : 'Meesho login failed. Please verify credentials.'
     );
   }
 
@@ -214,175 +169,258 @@ async function loginToMeesho(browser, meeshoId, password, onStep) {
 }
 
 /**
- * Fetch all catalogs from the Meesho Supplier Panel.
- * @param {import('puppeteer').Page} page - Already logged-in page
- * @param {Function} onStep              - Progress callback(stepNumber, message)
- * @returns {Array} Array of catalog objects with SKUs
+ * Main scraper entry point.
  */
-async function fetchCatalogs(page, onStep) {
-  onStep(3, 'Navigating to My Catalogs...');
-
-  await page.goto(MEESHO_CATALOG_URL, { waitUntil: 'networkidle2', timeout: 30000 });
-  await delay(2000);
-
-  onStep(4, 'Reading catalog listings...');
-
-  // Scroll to load lazy-loaded catalog cards
-  await autoScroll(page);
-  await delay(1000);
-
-  // Extract catalogs from the page
-  // Meesho renders catalog cards with product names, SKU codes, images
-  const catalogs = await page.evaluate(() => {
-    const results = [];
-
-    // Primary: catalog cards container
-    // Meesho uses Material-UI cards — selectors may include:
-    // - divs with class containing "catalog", "CatalogCard", "product-card"
-    // - table rows with product data
-    const cardSelectors = [
-      '[class*="CatalogCard"]',
-      '[class*="catalog-card"]',
-      '[class*="ProductCard"]',
-      '[class*="product-card"]',
-      'tr[class*="catalog"]',
-      '[data-testid*="catalog"]'
-    ];
-
-    let cards = [];
-    for (const sel of cardSelectors) {
-      const found = document.querySelectorAll(sel);
-      if (found.length > 0) {
-        cards = Array.from(found);
-        break;
-      }
-    }
-
-    // Fallback: look for tables (Meesho sometimes uses data tables)
-    if (cards.length === 0) {
-      const rows = document.querySelectorAll('table tbody tr');
-      if (rows.length > 0) {
-        cards = Array.from(rows);
-      }
-    }
-
-    for (const card of cards) {
-      const text = card.innerText || card.textContent || '';
-
-      // Extract SKU-like codes (alphanumeric with hyphens, 4+ chars)
-      const skuMatches = text.match(/[A-Z0-9][A-Z0-9\-_]{3,30}/g) || [];
-      const uniqueSkus = [...new Set(skuMatches)].filter(s =>
-        s.length >= 4 && !['MEESHO', 'CATALOG', 'ACTIVE', 'STATUS', 'PRICE'].includes(s)
-      );
-
-      // Extract title (first meaningful text block)
-      const titleEl = card.querySelector('h6, h5, h4, [class*="title"], [class*="name"], [class*="Title"], strong');
-      const title = titleEl ? titleEl.innerText.trim() : text.split('\n')[0].trim();
-
-      if (title && title.length > 2) {
-        results.push({
-          title: title.substring(0, 120),
-          skus: uniqueSkus.slice(0, 5) // max 5 SKUs per catalog
-        });
-      }
-    }
-
-    // If still nothing — try to read raw page data from window/React state
-    if (results.length === 0) {
-      // Meesho sometimes exposes data in window.__INITIAL_STATE__ or similar
-      try {
-        const stateKeys = Object.keys(window).filter(k =>
-          k.includes('state') || k.includes('data') || k.includes('catalog')
-        );
-        for (const key of stateKeys.slice(0, 5)) {
-          const val = JSON.stringify(window[key] || {});
-          if (val.includes('sku') || val.includes('catalog')) {
-            results.push({ __raw: key, data: val.substring(0, 500) });
-          }
-        }
-      } catch (_) { }
-    }
-
-    return results;
-  });
-
-  return catalogs;
-}
-
-/**
- * Convert raw catalog scrape results into clean ImportedSku records.
- * Falls back to generating structured SKUs from catalog titles if
- * the scraper couldn't extract explicit SKU codes.
- * @param {Array} catalogs  - Raw catalog data from fetchCatalogs()
- * @param {string} accountName - Account name for prefix generation
- * @returns {Array} Array of { marketplace_sku, title, color_variant, size_variant }
- */
-function buildImportedSkus(catalogs, accountName) {
-  const skus = [];
-  const seen = new Set();
-  const prefix = accountName.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8);
-
-  for (let i = 0; i < catalogs.length; i++) {
-    const catalog = catalogs[i];
-    const title = catalog.title || `Catalog ${i + 1}`;
-
-    if (catalog.skus && catalog.skus.length > 0) {
-      // Use real scraped SKU codes
-      for (const sku of catalog.skus) {
-        if (!seen.has(sku)) {
-          seen.add(sku);
-          skus.push({
-            marketplace_sku: sku,
-            title: title,
-            color_variant: null,
-            size_variant: null
-          });
-        }
-      }
-    } else {
-      // Generate a structured SKU from catalog title words
-      const titleWords = title.toUpperCase().replace(/[^A-Z0-9\s]/g, '').split(/\s+/).filter(Boolean);
-      const skuSuffix = titleWords.slice(0, 3).join('-').substring(0, 20) || `CAT${i + 1}`;
-      const sku = `${prefix}-${skuSuffix}`;
-      if (!seen.has(sku)) {
-        seen.add(sku);
-        skus.push({
-          marketplace_sku: sku,
-          title: title,
-          color_variant: null,
-          size_variant: null
-        });
-      }
-    }
-  }
-
-  return skus;
-}
-
-/**
- * Main entry point — scrape Meesho catalog for an account.
- * @param {Object} opts
- * @param {string} opts.meeshoId
- * @param {string} opts.password
- * @param {string} opts.accountName
- * @param {Function} opts.onStep  - Progress callback(stepNumber, message)
- * @returns {Array} Array of ImportedSku-ready objects
- */
-async function scrapeMeeshoCatalog({ meeshoId, password, accountName, onStep = () => { } }) {
+async function scrapeMeeshoCatalog({ meeshoId, password, accountName, onStep = () => {} }) {
   let browser = null;
+  let page = null;
 
   try {
-    onStep(0, 'Launching secure browser session...');
+    onStep(0, 'Launching browser session...');
     browser = await launchBrowser();
 
-    const page = await loginToMeesho(browser, meeshoId, password, onStep);
+    page = await loginToMeesho(browser, meeshoId, password, onStep);
 
-    const catalogs = await fetchCatalogs(page, onStep);
+    // 1. Dynamic Supplier ID Hash Retrieval
+    let supplierHash = null;
+    const startTime = Date.now();
+    onStep(2, 'Resolving Supplier Hash...');
+    while (Date.now() - startTime < 15000) {
+      const url = page.url();
+      if (url.includes('/growth/')) {
+        supplierHash = url.split('/growth/')[1].split('/')[0];
+        break;
+      }
+      if (url.includes('/services/')) {
+        supplierHash = url.split('/services/')[1].split('/')[0];
+        break;
+      }
+      await delay(500);
+    }
 
-    onStep(5, `Extracted ${catalogs.length} catalog(s). Processing SKUs...`);
-    const skus = buildImportedSkus(catalogs, accountName);
+    if (!supplierHash) {
+      throw new Error(`Could not retrieve Supplier Panel ID hash. Current URL: ${page.url()}`);
+    }
 
-    return skus;
+    // 2. Set up request interception listener to capture custom headers and POST parameters
+    let interceptedHeaders = null;
+    let interceptedBody = null;
+
+    const requestListener = req => {
+      const url = req.url();
+      if (url.includes('fetchAllStockV2Catalogs') && !interceptedHeaders) {
+        interceptedHeaders = req.headers();
+        try {
+          interceptedBody = JSON.parse(req.postData() || '{}');
+        } catch (_) {}
+      }
+    };
+
+    page.on('request', requestListener);
+
+    // 3. Navigate to the Inventory Services page to trigger initial list requests
+    const inventoryUrl = `https://supplier.meesho.com/panel/v3/new/services/${supplierHash}/inventory`;
+    onStep(3, 'Navigating to Inventory panel...');
+    await page.goto(inventoryUrl, { waitUntil: 'networkidle2', timeout: 35000 });
+
+    await delay(7000);
+
+    // Dismiss onboarding popup if present
+    try {
+      const gotItHandle = await page.evaluateHandle(() => {
+        const elements = Array.from(document.querySelectorAll('*'));
+        return elements.find(el => {
+          const text = (el.innerText || el.textContent || '').trim().toLowerCase();
+          return text === 'got it';
+        }) || null;
+      });
+      const gotItEl = gotItHandle.asElement();
+      if (gotItEl) {
+        await gotItEl.click();
+        await delay(1500);
+      }
+    } catch (_) {}
+
+    if (!interceptedHeaders) {
+      console.log('Waiting another 5 seconds for background API headers...');
+      await delay(5000);
+    }
+
+    if (!interceptedHeaders) {
+      throw new Error('Failed to intercept catalog list headers. The Meesho panel API might have changed.');
+    }
+
+    // Clean up request listener
+    page.off('request', requestListener);
+
+    // 4. Retrieve Tab Counts programmatically
+    onStep(4, 'Querying catalog inventory status counts...');
+    const tabCountsResponse = await page.evaluate(async (headers, supplierId) => {
+      const r = await fetch('/api/services/catalogManagement/fetchTabCountV2', {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json;charset=UTF-8',
+          'client-type': headers['client-type'] || 'd-web',
+          'client-version': headers['client-version'] || 'v1',
+          'browser-id': headers['browser-id'],
+          'identifier': headers['identifier']
+        },
+        body: JSON.stringify({ supplier_id: supplierId })
+      });
+      return r.json();
+    }, interceptedHeaders, interceptedBody.supplier_id);
+
+    if (!tabCountsResponse || !tabCountsResponse.counts) {
+      throw new Error('Failed to retrieve inventory tab counts.');
+    }
+
+    const activeCountObj = tabCountsResponse.counts.find(c => c.key === 'active');
+    const pausedCountObj = tabCountsResponse.counts.find(c => c.key === 'paused');
+    const blockedCountObj = tabCountsResponse.counts.find(c => c.key === 'blocked');
+
+    const activeCount = activeCountObj ? activeCountObj.value : 0;
+    const pausedCount = pausedCountObj ? pausedCountObj.value : 0;
+    const blockedCount = blockedCountObj ? blockedCountObj.value : 0;
+
+    console.log(`Scraper: Counts - Active: ${activeCount}, Paused: ${pausedCount}, Blocked: ${blockedCount}`);
+
+    // Define tasks to fetch
+    const fetchTasks = [];
+    if (activeCount > 0) {
+      fetchTasks.push({
+        tab: 'active',
+        endpoint: '/api/services/catalogManagement/fetchAllStockV2Catalogs',
+        count: activeCount,
+        bodyTemplate: {
+          ...interceptedBody,
+          old_category_id: [],
+          sort_by: "ORDERS_PER_DAY",
+          fetch_price_reco: false,
+          is_hasp_seller: true,
+          gst_type: "GSTIN"
+        }
+      });
+    }
+    if (pausedCount > 0) {
+      fetchTasks.push({
+        tab: 'paused',
+        endpoint: '/api/services/catalogManagement/fetchArchivedV2Catalogs',
+        count: pausedCount,
+        bodyTemplate: {
+          ...interceptedBody,
+          old_category_id: [],
+          is_hasp_seller: true,
+          gst_type: "GSTIN"
+        }
+      });
+    }
+    if (blockedCount > 0) {
+      fetchTasks.push({
+        tab: 'blocked',
+        endpoint: '/api/services/catalogManagement/fetchAllDeactivatedV2Catalogs',
+        count: blockedCount,
+        bodyTemplate: {
+          ...interceptedBody,
+          old_category_id: [],
+          is_hasp_seller: true,
+          gst_type: "GSTIN"
+        }
+      });
+    }
+
+    const allImportedSkus = [];
+
+    // 5. Fetch all catalogs programmatically tab by tab
+    for (const task of fetchTasks) {
+      onStep(4, `Downloading ${task.tab} catalogs (Total: ${task.count})...`);
+
+      // Run parallel batch requests directly in browser context (concurrency = 5)
+      const catalogsData = await page.evaluate(async (headers, endpoint, count, bodyTemplate) => {
+        const results = [];
+        const concurrency = 5;
+
+        for (let i = 0; i < count; i += concurrency) {
+          const batchPromises = [];
+          for (let j = 0; j < concurrency && (i + j) < count; j++) {
+            const offset = i + j;
+            const requestBody = {
+              ...bodyTemplate,
+              limit: 1,
+              offset: offset
+            };
+
+            const promise = fetch(endpoint, {
+              method: 'POST',
+              headers: {
+                'content-type': 'application/json;charset=UTF-8',
+                'client-type': headers['client-type'] || 'd-web',
+                'client-version': headers['client-version'] || 'v1',
+                'browser-id': headers['browser-id'],
+                'identifier': headers['identifier']
+              },
+              body: JSON.stringify(requestBody)
+            })
+            .then(res => res.json())
+            .then(data => {
+              if (data && data.catalogs && data.catalogs[0]) {
+                return data.catalogs[0];
+              }
+              return null;
+            })
+            .catch(err => ({ error: err.message }));
+
+            batchPromises.push(promise);
+          }
+
+          const batchResults = await Promise.all(batchPromises);
+          results.push(...batchResults.filter(Boolean));
+
+          // 50ms safety delay between batches
+          await new Promise(r => setTimeout(r, 50));
+        }
+
+        return results;
+      }, interceptedHeaders, task.endpoint, task.count, task.bodyTemplate);
+
+      console.log(`Scraper: Fetched ${catalogsData.length} catalogs in "${task.tab}" tab.`);
+
+      // 6. Map variants into ImportedSku-ready records
+      for (const catalog of catalogsData) {
+        if (catalog.error) {
+          console.error(`Error fetching catalog: ${catalog.error}`);
+          continue;
+        }
+
+        const catalogId = catalog.id ? catalog.id.toString() : null;
+        const catalogName = catalog.name || 'Check out this trending catalog';
+
+        if (catalog.products && catalog.products.length > 0) {
+          for (const prod of catalog.products) {
+            if (!prod.sku_id) continue;
+
+            allImportedSkus.push({
+              marketplace_sku: prod.sku_id,
+              title: prod.name || catalogName,
+              color_variant: null,
+              size_variant: prod.variation || null,
+              
+              // New details fields
+              catalog_id: catalogId,
+              catalog_name: catalogName,
+              style_id: prod.style_id || null,
+              image_url: prod.image_url || null,
+              price: prod.meesho_price ? Math.round(Number(prod.meesho_price) * 100) : null,
+              inventory: prod.inventory !== undefined ? Number(prod.inventory) : null,
+              status: task.tab
+            });
+          }
+        }
+      }
+    }
+
+    onStep(5, `Successfully scraped ${allImportedSkus.length} SKU variants across connected tabs.`);
+    return allImportedSkus;
+
   } finally {
     if (browser) {
       await browser.close();
@@ -390,27 +428,8 @@ async function scrapeMeeshoCatalog({ meeshoId, password, accountName, onStep = (
   }
 }
 
-// ── Utilities ────────────────────────────────────────────────────────────────
-
 function delay(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
-}
-
-async function autoScroll(page) {
-  await page.evaluate(async () => {
-    await new Promise(resolve => {
-      let totalHeight = 0;
-      const distance = 300;
-      const timer = setInterval(() => {
-        window.scrollBy(0, distance);
-        totalHeight += distance;
-        if (totalHeight >= document.body.scrollHeight - window.innerHeight) {
-          clearInterval(timer);
-          resolve();
-        }
-      }, 200);
-    });
-  });
 }
 
 module.exports = { scrapeMeeshoCatalog };

@@ -44,17 +44,21 @@ model SkuMapping {
 }
 
 model Account {
-  id              Int            @id @default(autoincrement())
-  name            String
-  platform        String         // meesho, flipkart, amazon
-  is_active       Boolean        @default(true)
-  notes           String?
-  meesho_username String?
-  meesho_password String?
-  sales_records   SalesRecord[]
-  pdf_imports     PdfImport[]
-  account_prices  AccountPrice[]
-  imported_skus   ImportedSku[]
+  id                 Int            @id @default(autoincrement())
+  name               String
+  platform           String         // meesho, flipkart, amazon
+  is_active          Boolean        @default(true)
+  notes              String?
+  meesho_supplier_id String?
+  meesho_username    String?
+  meesho_password    String?
+  meesho_sync_status String?        // pending, syncing, success, failed
+  meesho_sync_error  String?
+  meesho_last_sync   DateTime?
+  sales_records      SalesRecord[]
+  pdf_imports        PdfImport[]
+  account_prices     AccountPrice[]
+  imported_skus      ImportedSku[]
 
   @@map("accounts")
 }
@@ -106,15 +110,26 @@ model PdfImport {
 model ImportedSku {
   id              Int      @id @default(autoincrement())
   account_id      Int
-  marketplace_sku String   @unique
+  marketplace_sku String
   product_id      Int?     // If mapped to a Master Product
   title           String?  // Catalog item title
   color_variant   String?
   size_variant    String?
+  
+  // New columns for Meesho Integration
+  catalog_id      String?
+  catalog_name    String?
+  style_id        String?
+  image_url       String?
+  price           Int?     // Stored in paisa
+  inventory       Int?     // Stock count
+  status          String?  // active, paused, blocked
+  
   created_at      DateTime @default(now())
   
   account         Account  @relation(fields: [account_id], references: [id], onDelete: Cascade)
   product         Product? @relation(fields: [product_id], references: [id], onDelete: SetNull)
 
+  @@unique([account_id, marketplace_sku])
   @@map("imported_skus")
 }

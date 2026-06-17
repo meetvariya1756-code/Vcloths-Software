@@ -15,6 +15,24 @@ function getStandardizedSku(sku, productName) {
   const upperSku = sku.toUpperCase().trim();
   const pName = (productName || '').toLowerCase();
 
+  // If it's a BARFI product, handle it strictly based on the mapped product name
+  if (pName.includes('barfi') || pName.includes('burfi')) {
+    const match = pName.match(/barfi-pc-(\d)/i);
+    if (match) {
+      return `BARFI-PC-${match[1]}`;
+    }
+    // Fallback based on raw sku parsing if product name doesn't match the new naming
+    const pcMatch = upperSku.match(/PC[-_]?([1-3])/i);
+    if (pcMatch) return `BARFI-PC-${pcMatch[1]}`;
+    if (upperSku.includes('+')) {
+      const parts = upperSku.split('+');
+      if (parts.length >= 1 && parts.length <= 3) return `BARFI-PC-${parts.length}`;
+    }
+    const endMatch = upperSku.match(/[-_]([1-3])$/);
+    if (endMatch) return `BARFI-PC-${endMatch[1]}`;
+    return "BARFI-PC-1";
+  }
+
   // 1. Determine base prefix from product name
   let basePrefix = 'OTHER';
   if (pName.includes('stripe shorts')) {
@@ -29,10 +47,6 @@ function getStandardizedSku(sku, productName) {
     basePrefix = 'KIDS-TRACK-PC';
   } else if (pName.includes('track pants')) {
     basePrefix = 'TRACKPC';
-  } else if (pName.includes('kids barfi')) {
-    basePrefix = 'KIDS-BARFI-PC';
-  } else if (pName.includes('barfi')) {
-    basePrefix = 'BARFI-PC';
   } else if (pName.includes('ladies wb')) {
     basePrefix = 'LDS-WB-BGY';
   } else if (pName.includes('ladies gb')) {
@@ -211,6 +225,7 @@ router.get('/daily', async (req, res) => {
       return {
         product_name: g.product_name,
         sku: g.sku,
+        standardized_sku: getStandardizedSku(g.sku, g.product_name),
         category: g.category,
         color: g.color,
         size: g.size,
@@ -503,7 +518,7 @@ router.get('/daily/export', async (req, res) => {
 
       worksheet.addRow({
         product_name: g.product_name,
-        sku: g.sku,
+        sku: getStandardizedSku(g.sku, g.product_name),
         category: g.category,
         size: g.size,
         quantity: g.quantity,

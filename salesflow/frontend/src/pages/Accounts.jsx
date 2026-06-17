@@ -16,6 +16,20 @@ export default function Accounts() {
   const [name, setName] = useState('');
   const [platform, setPlatform] = useState('meesho');
   const [notes, setNotes] = useState('');
+  const [meeshoSupplierId, setMeeshoSupplierId] = useState('');
+  const [meeshoUsername, setMeeshoUsername] = useState('');
+  const [meeshoPassword, setMeeshoPassword] = useState('');
+
+  // Edit Account Modal / Form
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editingAccount, setEditingAccount] = useState(null);
+  const [editName, setEditName] = useState('');
+  const [editPlatform, setEditPlatform] = useState('meesho');
+  const [editNotes, setEditNotes] = useState('');
+  const [editIsActive, setEditIsActive] = useState(true);
+  const [editMeeshoSupplierId, setEditMeeshoSupplierId] = useState('');
+  const [editMeeshoUsername, setEditMeeshoUsername] = useState('');
+  const [editMeeshoPassword, setEditMeeshoPassword] = useState('');
 
   // Editing Overrides
   const [editingProductId, setEditingProductId] = useState(null);
@@ -61,18 +75,76 @@ export default function Accounts() {
     }
 
     try {
-      await api.post('/accounts', {
+      const payload = {
         name,
         platform,
-        notes
-      });
+        notes,
+        is_active: true
+      };
+
+      if (platform === 'meesho') {
+        payload.meesho_supplier_id = meeshoSupplierId.trim() || null;
+        payload.meesho_username = meeshoUsername.trim() || null;
+        payload.meesho_password = meeshoPassword.trim() || null;
+      }
+
+      await api.post('/accounts', payload);
       setIsAddModalOpen(false);
       setName('');
       setPlatform('meesho');
       setNotes('');
+      setMeeshoSupplierId('');
+      setMeeshoUsername('');
+      setMeeshoPassword('');
       fetchAccounts();
     } catch (err) {
       alert(err.response?.data?.error || 'Failed to create account');
+    }
+  };
+
+  const handleOpenEditModal = (acc) => {
+    setEditingAccount(acc);
+    setEditName(acc.name);
+    setEditPlatform(acc.platform);
+    setEditNotes(acc.notes || '');
+    setEditIsActive(acc.is_active);
+    setEditMeeshoSupplierId(acc.meesho_supplier_id || '');
+    setEditMeeshoUsername(acc.meesho_username || '');
+    setEditMeeshoPassword(acc.meesho_password || '');
+    setIsEditModalOpen(true);
+  };
+
+  const handleEditAccountSubmit = async (e) => {
+    e.preventDefault();
+    if (!editName || !editPlatform) {
+      alert('Please fill out all required fields');
+      return;
+    }
+
+    try {
+      const payload = {
+        name: editName,
+        platform: editPlatform,
+        notes: editNotes,
+        is_active: editIsActive
+      };
+
+      if (editPlatform === 'meesho') {
+        payload.meesho_supplier_id = editMeeshoSupplierId.trim() || null;
+        payload.meesho_username = editMeeshoUsername.trim() || null;
+        payload.meesho_password = editMeeshoPassword.trim() || null;
+      }
+
+      await api.put(`/accounts/${editingAccount.id}`, payload);
+      setIsEditModalOpen(false);
+      setEditingAccount(null);
+      fetchAccounts();
+      if (expandedAccountId === editingAccount.id) {
+        // Refresh expanded details too
+        handleExpandAccount(editingAccount.id);
+      }
+    } catch (err) {
+      alert(err.response?.data?.error || 'Failed to update account');
     }
   };
 
@@ -175,17 +247,50 @@ export default function Accounts() {
                     <td className="py-4 px-4">
                       {getPlatformBadge(acc.platform)}
                     </td>
-                    <td className="py-4 px-4">
-                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                        acc.is_active ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-red-50 text-red-700 border border-red-200'
-                      }`}>
-                        {acc.is_active ? 'ACTIVE' : 'INACTIVE'}
-                      </span>
+                    <td className="py-4 px-4 space-y-1">
+                      <div>
+                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                          acc.is_active ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-red-50 text-red-700 border border-red-200'
+                        }`}>
+                          {acc.is_active ? 'ACTIVE' : 'INACTIVE'}
+                        </span>
+                      </div>
+                      {acc.platform === 'meesho' && (
+                        <div>
+                          {acc.meesho_sync_status === 'syncing' ? (
+                            <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-blue-50 text-blue-700 border border-blue-200 animate-pulse">
+                              Syncing...
+                            </span>
+                          ) : acc.meesho_sync_status === 'success' ? (
+                            <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200" title={acc.meesho_last_sync ? `Last Synced: ${new Date(acc.meesho_last_sync).toLocaleString()}` : ''}>
+                              Synced
+                            </span>
+                          ) : acc.meesho_sync_status === 'failed' ? (
+                            <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-rose-50 text-rose-700 border border-rose-200" title={acc.meesho_sync_error || ''}>
+                              Sync Failed
+                            </span>
+                          ) : (
+                            <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-slate-100 text-slate-500 border border-slate-200">
+                              No Sync
+                            </span>
+                          )}
+                        </div>
+                      )}
                     </td>
                     <td className="py-4 px-6 text-slate-450 italic font-medium">
                       {acc.notes || <span className="text-slate-300 font-normal">No notes written</span>}
                     </td>
-                    <td className="py-4 px-6 text-right">
+                    <td className="py-4 px-6 text-right space-x-1.5">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleOpenEditModal(acc);
+                        }}
+                        className="p-1.5 text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded transition-all inline-block"
+                        title="Edit Account Details"
+                      >
+                        <Edit3 size={16} />
+                      </button>
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
@@ -215,7 +320,53 @@ export default function Accounts() {
                               
                               {/* Account metrics */}
                               <div className="bg-white border border-slate-200 rounded p-4 shadow-sm space-y-4">
-                                <h4 className="text-xs font-bold text-slate-700 uppercase tracking-tight">Account Sales Performance</h4>
+                                <div className="flex justify-between items-start">
+                                  <h4 className="text-xs font-bold text-slate-700 uppercase tracking-tight">Account Info & Metrics</h4>
+                                  {acc.platform === 'meesho' && (
+                                    <button
+                                      onClick={async (e) => {
+                                        e.stopPropagation();
+                                        try {
+                                          await api.post(`/accounts/${acc.id}/sync`);
+                                          alert('Sync triggered in background.');
+                                          // Refresh expand view
+                                          handleExpandAccount(acc.id);
+                                        } catch (err) {
+                                          alert('Failed to trigger sync: ' + (err.response?.data?.error || err.message));
+                                        }
+                                      }}
+                                      disabled={acc.meesho_sync_status === 'syncing'}
+                                      className="px-2.5 py-1 bg-slate-900 hover:bg-slate-800 disabled:bg-slate-200 text-white rounded text-[10px] font-bold transition-all shadow-sm"
+                                    >
+                                      {acc.meesho_sync_status === 'syncing' ? 'Syncing...' : 'Sync Now'}
+                                    </button>
+                                  )}
+                                </div>
+
+                                {acc.platform === 'meesho' && (
+                                  <div className="bg-slate-50 border border-slate-200 rounded p-3 text-xs space-y-1.5 font-medium">
+                                    <div className="text-[9px] uppercase font-extrabold text-slate-400 tracking-wider">Meesho Connection Details</div>
+                                    <div className="flex justify-between">
+                                      <span className="text-slate-500">Supplier ID:</span>
+                                      <span className="font-mono font-bold text-slate-700">{acc.meesho_supplier_id || <span className="text-slate-350 italic font-normal">Not configured</span>}</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                      <span className="text-slate-500">Login ID / Username:</span>
+                                      <span className="font-mono font-bold text-slate-700">{acc.meesho_username || <span className="text-slate-350 italic font-normal">Not configured</span>}</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                      <span className="text-slate-500">Last Synced:</span>
+                                      <span className="text-slate-700">{acc.meesho_last_sync ? new Date(acc.meesho_last_sync).toLocaleString() : <span className="text-slate-350 italic font-normal">Never synced</span>}</span>
+                                    </div>
+                                    {acc.meesho_sync_error && (
+                                      <div className="text-[10px] text-red-600 bg-red-50 border border-red-100 p-2 rounded mt-1.5 leading-snug">
+                                        <span className="font-extrabold uppercase text-[8px] tracking-wider block text-red-500 mb-0.5">Sync Error Log</span>
+                                        {acc.meesho_sync_error}
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
+
                                 <div className="grid grid-cols-2 gap-4">
                                   <div className="space-y-1">
                                     <span className="text-[10px] uppercase font-bold text-slate-400">Today's Qty</span>
@@ -377,7 +528,7 @@ export default function Accounts() {
               <p className="text-xs text-slate-400 font-medium">Add a sales account to start parsing platform PDFs and reports</p>
             </div>
 
-            <form onSubmit={handleAddAccountSubmit} className="space-y-4">
+             <form onSubmit={handleAddAccountSubmit} className="space-y-4">
               <div>
                 <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Account Name</label>
                 <input
@@ -385,7 +536,7 @@ export default function Accounts() {
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   className="w-full px-3 py-2 border border-slate-200 rounded text-sm focus:outline-none focus:border-blue-500"
-                  placeholder="e.g. Lakhela, Means Ketla"
+                  placeholder="e.g. AHANA, BALAPARI"
                   required
                 />
               </div>
@@ -403,6 +554,46 @@ export default function Accounts() {
                   <option value="amazon">Amazon (Green)</option>
                 </select>
               </div>
+
+              {platform === 'meesho' && (
+                <div className="p-4 bg-slate-50 border border-slate-200 rounded-md space-y-4">
+                  <span className="text-[10px] uppercase font-extrabold text-blue-600 tracking-wider block">Meesho Credentials</span>
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1.5">Meesho Supplier ID</label>
+                    <input
+                      type="text"
+                      value={meeshoSupplierId}
+                      onChange={(e) => setMeeshoSupplierId(e.target.value)}
+                      className="w-full px-3 py-2 border border-slate-200 rounded text-sm bg-white focus:outline-none focus:border-blue-500 font-semibold"
+                      placeholder="e.g. 14"
+                      required
+                    />
+                    <p className="text-[10px] text-slate-400 mt-1 font-medium">Distinct from Login ID; matches supplier catalog identifier.</p>
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1.5">Login ID / Username</label>
+                    <input
+                      type="text"
+                      value={meeshoUsername}
+                      onChange={(e) => setMeeshoUsername(e.target.value)}
+                      className="w-full px-3 py-2 border border-slate-200 rounded text-sm bg-white focus:outline-none focus:border-blue-500 font-semibold"
+                      placeholder="e.g. admin"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1.5">Password</label>
+                    <input
+                      type="password"
+                      value={meeshoPassword}
+                      onChange={(e) => setMeeshoPassword(e.target.value)}
+                      className="w-full px-3 py-2 border border-slate-200 rounded text-sm bg-white focus:outline-none focus:border-blue-500"
+                      placeholder="Enter password"
+                      required
+                    />
+                  </div>
+                </div>
+              )}
 
               <div>
                 <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Notes / Description</label>
@@ -427,6 +618,121 @@ export default function Accounts() {
                   className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded"
                 >
                   Register Account
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Account Modal */}
+      {isEditModalOpen && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 flex items-center justify-center p-4">
+          <div className="bg-white border border-slate-200 rounded-lg max-w-md w-full p-6 space-y-6 shadow-xl">
+            <div>
+              <h3 className="text-md font-bold text-slate-800">Edit Account Details</h3>
+              <p className="text-xs text-slate-400 font-medium">Modify credentials or details for this sales channel</p>
+            </div>
+
+            <form onSubmit={handleEditAccountSubmit} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Account Name</label>
+                <input
+                  type="text"
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-200 rounded text-sm focus:outline-none focus:border-blue-500 font-semibold"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Sales Channel Platform</label>
+                <select
+                  value={editPlatform}
+                  onChange={(e) => setEditPlatform(e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-200 rounded text-sm bg-white"
+                  required
+                >
+                  <option value="meesho">Meesho (Blue)</option>
+                  <option value="flipkart">Flipkart (Orange)</option>
+                  <option value="amazon">Amazon (Green)</option>
+                </select>
+              </div>
+
+              {editPlatform === 'meesho' && (
+                <div className="p-4 bg-slate-50 border border-slate-200 rounded-md space-y-4">
+                  <span className="text-[10px] uppercase font-extrabold text-blue-600 tracking-wider block">Meesho Credentials</span>
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1.5">Meesho Supplier ID</label>
+                    <input
+                      type="text"
+                      value={editMeeshoSupplierId}
+                      onChange={(e) => setEditMeeshoSupplierId(e.target.value)}
+                      className="w-full px-3 py-2 border border-slate-200 rounded text-sm bg-white focus:outline-none focus:border-blue-500 font-semibold"
+                      placeholder="e.g. 14"
+                      required
+                    />
+                    <p className="text-[10px] text-slate-400 mt-1 font-medium">Distinct from Login ID; matches supplier catalog identifier.</p>
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1.5">Login ID / Username</label>
+                    <input
+                      type="text"
+                      value={editMeeshoUsername}
+                      onChange={(e) => setEditMeeshoUsername(e.target.value)}
+                      className="w-full px-3 py-2 border border-slate-200 rounded text-sm bg-white focus:outline-none focus:border-blue-500 font-semibold"
+                      placeholder="e.g. admin"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1.5">Password</label>
+                    <input
+                      type="password"
+                      value={editMeeshoPassword}
+                      onChange={(e) => setEditMeeshoPassword(e.target.value)}
+                      className="w-full px-3 py-2 border border-slate-200 rounded text-sm bg-white focus:outline-none focus:border-blue-500"
+                      placeholder="Enter password"
+                      required
+                    />
+                  </div>
+                </div>
+              )}
+
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="editIsActive"
+                  checked={editIsActive}
+                  onChange={(e) => setEditIsActive(e.target.checked)}
+                  className="rounded text-blue-600 focus:ring-blue-500"
+                />
+                <label htmlFor="editIsActive" className="text-xs font-bold text-slate-500 uppercase select-none">Account Active</label>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Notes / Description</label>
+                <textarea
+                  value={editNotes}
+                  onChange={(e) => setEditNotes(e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-200 rounded text-sm focus:outline-none focus:border-blue-500 font-medium"
+                ></textarea>
+              </div>
+
+              <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setIsEditModalOpen(false)}
+                  className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded"
+                >
+                  Save Changes
                 </button>
               </div>
             </form>

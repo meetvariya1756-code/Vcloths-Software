@@ -288,7 +288,7 @@ export default function DailyReport() {
                   {tableRows.map((row, index) => (
                     <tr key={index} className="border-b border-slate-100 hover:bg-slate-50/50">
                       <td className="py-3 px-4 font-bold text-slate-800">{row.product_name}</td>
-                      <td className="py-3 px-4 font-mono font-bold text-blue-600">{row.sku}</td>
+                      <td className="py-3 px-4 font-mono font-bold text-blue-600">{row.standardized_sku || row.sku}</td>
                       <td className="py-3 px-4 text-slate-500 font-medium">{row.category}</td>
                       <td className="py-3 px-4 text-center font-medium text-slate-700">{row.quantity}</td>
                       <td className="py-3 px-4 text-center font-bold text-blue-600">{row.total_labels}</td>

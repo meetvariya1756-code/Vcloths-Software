@@ -17,22 +17,165 @@ router.get('/', async (req, res) => {
   }
 });
 
+// ── Background Auto-Sync Helper ──────────────────────────────────────────────
+async function triggerBackgroundSync(accountId) {
+  setTimeout(async () => {
+    try {
+      const account = await prisma.account.findUnique({
+        where: { id: accountId }
+      });
+
+      if (!account || account.platform !== 'meesho') return;
+      if (!account.meesho_username || !account.meesho_password) return;
+
+      // Set status to syncing and clear any old error
+      await prisma.account.update({
+        where: { id: accountId },
+        data: {
+          meesho_sync_status: 'syncing',
+          meesho_sync_error: null
+        }
+      });
+
+      console.log(`[Background Sync] Starting scraper for account "${account.name}" (ID: ${account.id})`);
+
+      const progressLog = [];
+      const onStep = (step, msg) => {
+        console.log(`[Background Sync][${account.name}] Step ${step}: ${msg}`);
+        progressLog.push({ step, msg });
+      };
+
+      const rawSkus = await scrapeMeeshoCatalog({
+        meeshoId: account.meesho_username,
+        password: account.meesho_password,
+        accountName: account.name,
+        onStep
+      });
+
+      if (!rawSkus || rawSkus.length === 0) {
+        throw new Error('No catalogs found in Meesho Supplier Panel. Verify active listings exist.');
+      }
+
+      // Upsert into database using account-scoped composite unique index
+      for (const sku of rawSkus) {
+        await prisma.importedSku.upsert({
+          where: {
+            account_id_marketplace_sku: {
+              account_id: account.id,
+              marketplace_sku: sku.marketplace_sku
+            }
+          },
+          update: {
+            title: sku.title || null,
+            color_variant: sku.color_variant || null,
+            size_variant: sku.size_variant || null,
+            catalog_id: sku.catalog_id || null,
+            catalog_name: sku.catalog_name || null,
+            style_id: sku.style_id || null,
+            image_url: sku.image_url || null,
+            price: sku.price || null,
+            inventory: sku.inventory !== null && sku.inventory !== undefined ? Number(sku.inventory) : null,
+            status: sku.status || null
+          },
+          create: {
+            account_id: account.id,
+            marketplace_sku: sku.marketplace_sku,
+            title: sku.title || null,
+            color_variant: sku.color_variant || null,
+            size_variant: sku.size_variant || null,
+            catalog_id: sku.catalog_id || null,
+            catalog_name: sku.catalog_name || null,
+            style_id: sku.style_id || null,
+            image_url: sku.image_url || null,
+            price: sku.price || null,
+            inventory: sku.inventory !== null && sku.inventory !== undefined ? Number(sku.inventory) : null,
+            status: sku.status || null
+          }
+        });
+      }
+
+      // Set status to success
+      await prisma.account.update({
+        where: { id: accountId },
+        data: {
+          meesho_sync_status: 'success',
+          meesho_last_sync: new Date(),
+          meesho_sync_error: null
+        }
+      });
+      console.log(`[Background Sync] Completed successfully for "${account.name}"`);
+
+    } catch (err) {
+      console.error(`[Background Sync] Error for account ID ${accountId}:`, err);
+      await prisma.account.update({
+        where: { id: accountId },
+        data: {
+          meesho_sync_status: 'failed',
+          meesho_sync_error: err.message
+        }
+      });
+    }
+  }, 0);
+}
+
+// ── Scheduled Auto-Sync Cron ──────────────────────────────────────────────────
+const syncAllAccounts = async () => {
+  try {
+    const meeshoAccounts = await prisma.account.findMany({
+      where: {
+        platform: 'meesho',
+        is_active: true,
+        meesho_username: { not: null },
+        meesho_password: { not: null }
+      }
+    });
+
+    console.log(`[Auto-Sync Cron] Found ${meeshoAccounts.length} active Meesho accounts to synchronize.`);
+    for (const acc of meeshoAccounts) {
+      triggerBackgroundSync(acc.id);
+    }
+  } catch (err) {
+    console.error('[Auto-Sync Cron] Error finding accounts:', err);
+  }
+};
+
+// Auto-sync accounts 2 minutes after startup, then every 6 hours
+setTimeout(() => {
+  console.log('[Auto-Sync Cron] Running initial startup synchronization...');
+  syncAllAccounts();
+}, 2 * 60 * 1000);
+
+setInterval(() => {
+  console.log('[Auto-Sync Cron] Running scheduled synchronization...');
+  syncAllAccounts();
+}, 6 * 60 * 60 * 1000);
+
 // POST new account
 router.post('/', async (req, res) => {
-  const { name, platform, is_active, notes } = req.body;
+  const { name, platform, is_active, notes, meesho_supplier_id, meesho_username, meesho_password } = req.body;
   if (!name || !platform) {
     return res.status(400).json({ error: 'Missing required fields' });
   }
 
   try {
+    const isMeesho = platform.toLowerCase() === 'meesho';
     const account = await prisma.account.create({
       data: {
         name,
         platform: platform.toLowerCase(),
         is_active: is_active !== undefined ? is_active : true,
-        notes: notes || null
+        notes: notes || null,
+        meesho_supplier_id: isMeesho ? meesho_supplier_id || null : null,
+        meesho_username: isMeesho ? meesho_username || null : null,
+        meesho_password: isMeesho ? meesho_password || null : null,
+        meesho_sync_status: isMeesho && meesho_username && meesho_password ? 'pending' : null
       }
     });
+
+    if (isMeesho && account.meesho_username && account.meesho_password) {
+      triggerBackgroundSync(account.id);
+    }
+
     res.status(201).json(account);
   } catch (err) {
     console.error(err);
@@ -43,18 +186,43 @@ router.post('/', async (req, res) => {
 // PUT update account
 router.put('/:id', async (req, res) => {
   const { id } = req.params;
-  const { name, platform, is_active, notes } = req.body;
+  const { name, platform, is_active, notes, meesho_supplier_id, meesho_username, meesho_password } = req.body;
 
   try {
+    const original = await prisma.account.findUnique({
+      where: { id: parseInt(id) }
+    });
+
+    if (!original) {
+      return res.status(404).json({ error: 'Account not found' });
+    }
+
+    const isMeesho = (platform || original.platform).toLowerCase() === 'meesho';
+
     const account = await prisma.account.update({
       where: { id: parseInt(id) },
       data: {
         name,
         platform: platform ? platform.toLowerCase() : undefined,
         is_active,
-        notes
+        notes,
+        meesho_supplier_id: isMeesho ? meesho_supplier_id || null : null,
+        meesho_username: isMeesho ? meesho_username || null : null,
+        meesho_password: isMeesho ? meesho_password || null : null
       }
     });
+
+    if (account.platform === 'meesho') {
+      const credsChanged = 
+        account.meesho_supplier_id !== original.meesho_supplier_id ||
+        account.meesho_username !== original.meesho_username ||
+        account.meesho_password !== original.meesho_password;
+
+      if (credsChanged && account.meesho_username && account.meesho_password) {
+        triggerBackgroundSync(account.id);
+      }
+    }
+
     res.json(account);
   } catch (err) {
     console.error(err);
@@ -200,6 +368,23 @@ router.get('/:id/summary', async (req, res) => {
   }
 });
 
+// GET all imported SKUs across all accounts
+router.get('/all/imported-skus', async (req, res) => {
+  try {
+    const skus = await prisma.importedSku.findMany({
+      include: {
+        product: true,
+        account: true
+      },
+      orderBy: { marketplace_sku: 'asc' }
+    });
+    res.json(skus);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to fetch all imported SKUs' });
+  }
+});
+
 // GET all imported SKUs for an account
 router.get('/:id/imported-skus', async (req, res) => {
   const { id } = req.params;
@@ -216,117 +401,35 @@ router.get('/:id/imported-skus', async (req, res) => {
   }
 });
 
-// POST sync Meesho account catalog — real Puppeteer-based scraper
-router.post('/:id/meesho-sync', async (req, res) => {
+// POST manually trigger background sync for a Meesho account
+router.post('/:id/sync', async (req, res) => {
   const { id } = req.params;
-  const { meesho_id, password } = req.body;
 
   try {
-    let account = await prisma.account.findUnique({
+    const account = await prisma.account.findUnique({
       where: { id: parseInt(id) }
     });
+
     if (!account) {
       return res.status(404).json({ error: 'Account not found' });
     }
 
-    // ── Credentials Lock and Validate ────────────────────────────────────────
-    const hasLocked = !!(account.meesho_username && account.meesho_password);
-    let activeId = meesho_id?.trim();
-    let activePassword = password?.trim();
-
-    if (!activeId || !activePassword) {
-      if (hasLocked) {
-        activeId = account.meesho_username;
-        activePassword = account.meesho_password;
-      } else {
-        return res.status(400).json({ error: 'Meesho ID and password are required' });
-      }
-    } else {
-      if (hasLocked) {
-        if (account.meesho_username !== activeId || account.meesho_password !== activePassword) {
-          return res.status(400).json({
-            error: 'Invalid Meesho Supplier credentials. The entered ID or Password does not match the credentials locked to this account.'
-          });
-        }
-      }
+    if (account.platform !== 'meesho') {
+      return res.status(400).json({ error: 'Sync only supported for Meesho platform.' });
     }
 
-    // ── Real Puppeteer Scraper ────────────────────────────────────────────────
-    // Track progress steps to send in final response
-    const progressLog = [];
-    const onStep = (step, msg) => {
-      console.log(`[Meesho Scraper] Step ${step}: ${msg}`);
-      progressLog.push({ step, msg });
-    };
-
-    let rawSkus;
-    try {
-      rawSkus = await scrapeMeeshoCatalog({
-        meeshoId: activeId,
-        password: activePassword,
-        accountName: account.name,
-        onStep
-      });
-    } catch (scraperErr) {
-      console.error('[Meesho Scraper] Error:', scraperErr.message);
-      // Return a structured error the frontend can display nicely
-      return res.status(422).json({
-        error: scraperErr.message,
-        hint: 'Make sure your Meesho Supplier Panel credentials are correct and that supplier.meesho.com is accessible.',
-        progress: progressLog
-      });
+    if (!account.meesho_username || !account.meesho_password) {
+      return res.status(400).json({ error: 'Meesho login credentials must be set before syncing.' });
     }
 
-    if (!rawSkus || rawSkus.length === 0) {
-      return res.status(422).json({
-        error: 'No catalogs found in your Meesho Supplier Panel. Make sure you have active listings.',
-        progress: progressLog
-      });
-    }
+    // Trigger sync in background
+    triggerBackgroundSync(account.id);
 
-    // On successful sync, lock/save the credentials in the database if not already done
-    if (!hasLocked) {
-      account = await prisma.account.update({
-        where: { id: parseInt(id) },
-        data: {
-          meesho_username: activeId,
-          meesho_password: activePassword
-        }
-      });
-    }
-
-    // ── Upsert into database ─────────────────────────────────────────────────
-    const imported = [];
-    for (const sku of rawSkus) {
-      const item = await prisma.importedSku.upsert({
-        where: { marketplace_sku: sku.marketplace_sku },
-        update: {
-          account_id: parseInt(id),
-          title: sku.title || null,
-          color_variant: sku.color_variant || null,
-          size_variant: sku.size_variant || null
-        },
-        create: {
-          account_id: parseInt(id),
-          marketplace_sku: sku.marketplace_sku,
-          title: sku.title || null,
-          color_variant: sku.color_variant || null,
-          size_variant: sku.size_variant || null
-        }
-      });
-      imported.push(item);
-    }
-
-    res.json({
-      success: true,
-      count: imported.length,
-      skus: imported,
-      progress: progressLog
-    });
-
+    // Return success immediately with updated sync status
+    res.json({ success: true, message: 'Meesho catalog sync started in the background.' });
   } catch (err) {
-    console.error('[Meesho Sync Route] Error:', err);
-    res.status(500).json({ error: 'Failed to sync Meesho catalog: ' + err.message });
+    console.error('[Manual Sync trigger] Error:', err);
+    res.status(500).json({ error: 'Failed to trigger sync: ' + err.message });
   }
 });
 
@@ -382,8 +485,11 @@ router.post('/:id/meesho-reset', async (req, res) => {
     const account = await prisma.account.update({
       where: { id: parseInt(id) },
       data: {
+        meesho_supplier_id: null,
         meesho_username: null,
-        meesho_password: null
+        meesho_password: null,
+        meesho_sync_status: null,
+        meesho_sync_error: null
       }
     });
     res.json({ success: true, message: 'Meesho credentials reset successfully for this account.', account });
