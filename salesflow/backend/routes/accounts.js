@@ -478,6 +478,7 @@ router.put('/:id/imported-skus/:skuId/map', async (req, res) => {
   }
 });
 
+
 // POST reset credentials for a Meesho account
 router.post('/:id/meesho-reset', async (req, res) => {
   const { id } = req.params;
@@ -499,4 +500,70 @@ router.post('/:id/meesho-reset', async (req, res) => {
   }
 });
 
+// POST /accounts/bulk-map-skus
+// Body: { product_id: number, color_variant?: string, size_variant?: string, sku_ids: number[] }
+// Maps multiple ImportedSku records and their SkuMappings to a single master product in one request.
+router.post('/bulk-map-skus', async (req, res) => {
+  const { product_id, color_variant, size_variant, sku_ids } = req.body;
+
+  if (!product_id || !Array.isArray(sku_ids) || sku_ids.length === 0) {
+    return res.status(400).json({ error: 'product_id and sku_ids[] are required' });
+  }
+
+  const productIdInt = parseInt(product_id);
+  const results = { success: [], failed: [] };
+
+  try {
+    // Fetch all targeted ImportedSkus at once
+    const importedSkus = await prisma.importedSku.findMany({
+      where: { id: { in: sku_ids.map(id => parseInt(id)) } }
+    });
+
+    // Run all updates in a single transaction
+    await prisma.$transaction(async (tx) => {
+      for (const imported of importedSkus) {
+        // Update ImportedSku
+        await tx.importedSku.update({
+          where: { id: imported.id },
+          data: {
+            product_id: productIdInt,
+            color_variant: color_variant || imported.color_variant || null,
+            size_variant: size_variant || imported.size_variant || null
+          }
+        });
+
+        // Upsert main SkuMapping for PDF/sales routing engine
+        await tx.skuMapping.upsert({
+          where: { marketplace_sku: imported.marketplace_sku },
+          update: {
+            product_id: productIdInt,
+            color_variant: color_variant || imported.color_variant || null,
+            size_variant: size_variant || imported.size_variant || null,
+            platform: 'meesho'
+          },
+          create: {
+            marketplace_sku: imported.marketplace_sku,
+            product_id: productIdInt,
+            color_variant: color_variant || imported.color_variant || null,
+            size_variant: size_variant || imported.size_variant || null,
+            platform: 'meesho'
+          }
+        });
+
+        results.success.push(imported.id);
+      }
+    });
+
+    res.json({
+      message: `Successfully mapped ${results.success.length} SKU(s) to product ${productIdInt}`,
+      mapped_count: results.success.length,
+      sku_ids: results.success
+    });
+  } catch (err) {
+    console.error('Bulk map error:', err);
+    res.status(500).json({ error: 'Bulk mapping failed: ' + err.message });
+  }
+});
+
 module.exports = router;
+
