@@ -23,10 +23,37 @@ function getPcNumber(sku) {
     return parseInt(pcMatch[1]);
   }
   
-  // 2. Match trailing dash/underscore number (e.g., MEN-WB-2 -> 2, KIDS-WB-BGY-1 -> 1)
+  // 2. Match P-X, P_X, PX at the beginning (e.g., P-2(STRIP-SH) -> 2)
+  const pMatch = upper.match(/^P[-_]?(\d+)/i);
+  if (pMatch) {
+    return parseInt(pMatch[1]);
+  }
+
+  // 3. Match B#A-X (e.g., [Barfi]-Cream+Coffee-B#A2 -> 2)
+  const bhashMatch = upper.match(/B#A(\d+)/i);
+  if (bhashMatch) {
+    return parseInt(bhashMatch[1]);
+  }
+
+  // 4. Match _olX size pattern (e.g., (KIDSBARFI)_Cream+Black_ol214 -> 2)
+  // Format is _OL followed by 1 digit (pieces multiplier) and 2 digits (size)
+  const olMatch = upper.match(/_OL(\d)(\d{2})$/i);
+  if (olMatch) {
+    return parseInt(olMatch[1]);
+  }
+  
+  // 5. Match trailing dash/underscore number (e.g., MEN-WB-2 -> 2, KIDS-WB-BGY-1 -> 1)
   const trailingMatch = upper.match(/[-_](\d+)$/);
   if (trailingMatch) {
     return parseInt(trailingMatch[1]);
+  }
+  
+  // 6. Match combo pack size based on count of colors separated by '+'
+  if (upper.includes('+')) {
+    const parts = upper.split('+');
+    if (parts.length >= 2) {
+      return parts.length;
+    }
   }
   
   return 1;
@@ -142,7 +169,7 @@ router.post('/upload', upload.single('file'), async (req, res) => {
         const price = accountPrice ? accountPrice.price : mapping.product.base_price;
         
         const orderQtyFromPdf = r.quantity ? parseInt(r.quantity) : 1;
-        const parsedPcNumber = getPcNumber(r.raw_sku);
+        const parsedPcNumber = r.pack_size ? parseInt(r.pack_size) : getPcNumber(r.raw_sku);
         const pcMultiplier = mapping.quantity > 1 ? mapping.quantity : parsedPcNumber;
         
         const totalPieces = orderQtyFromPdf * pcMultiplier;
@@ -167,7 +194,7 @@ router.post('/upload', upload.single('file'), async (req, res) => {
         unmappedSkus.add(r.raw_sku);
         
         const orderQtyFromPdf = r.quantity ? parseInt(r.quantity) : 1;
-        const parsedPcNumber = getPcNumber(r.raw_sku);
+        const parsedPcNumber = r.pack_size ? parseInt(r.pack_size) : getPcNumber(r.raw_sku);
         const totalPieces = orderQtyFromPdf * parsedPcNumber;
 
         resolvedRecords.push({

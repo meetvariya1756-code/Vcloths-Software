@@ -5,7 +5,7 @@ import Dashboard from './pages/Dashboard';
 import Import from './pages/Import';
 import Products from './pages/Products';
 import SKUMapping from './pages/SKUMapping';
-import BulkAddSku from './pages/BulkAddSku';
+import MeeshoSync from './pages/MeeshoSync';
 import Accounts from './pages/Accounts';
 import DailyReport from './pages/DailyReport';
 import MonthlyReport from './pages/MonthlyReport';
@@ -44,7 +44,7 @@ export default function App() {
         <Route path="/import" element={<ProtectedLayout><Import /></ProtectedLayout>} />
         <Route path="/products" element={<ProtectedLayout><Products /></ProtectedLayout>} />
         <Route path="/sku-mappings" element={<ProtectedLayout><SKUMapping /></ProtectedLayout>} />
-        <Route path="/bulk-add-sku" element={<ProtectedLayout><BulkAddSku /></ProtectedLayout>} />
+        <Route path="/meesho-sync" element={<ProtectedLayout><MeeshoSync /></ProtectedLayout>} />
         <Route path="/accounts" element={<ProtectedLayout><Accounts /></ProtectedLayout>} />
         <Route path="/daily-report" element={<ProtectedLayout><DailyReport /></ProtectedLayout>} />
         <Route path="/monthly-report" element={<ProtectedLayout><MonthlyReport /></ProtectedLayout>} />

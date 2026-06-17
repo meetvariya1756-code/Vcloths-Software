@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar, Filter, FileSpreadsheet, Package, FileText, IndianRupee, Landmark } from 'lucide-react';
+import { Calendar, Filter, FileSpreadsheet, Package, FileText, IndianRupee, Landmark, Copy, Check } from 'lucide-react';
 import api from '../api';
 import Header from '../components/Header';
 import { formatIndianCurrency, getPlatformBadge } from './Dashboard';
@@ -15,6 +15,15 @@ export default function DailyReport() {
   const [reportData, setReportData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = () => {
+    if (reportData?.whatsappMessage) {
+      navigator.clipboard.writeText(reportData.whatsappMessage);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  };
 
   useEffect(() => {
     fetchFilters();
@@ -199,7 +208,55 @@ export default function DailyReport() {
           ))}
         </div>
 
+        {/* WhatsApp Daily Summary Box */}
+        {reportData?.whatsappMessage && (
+          <div className="bg-white border border-slate-200 rounded-lg p-6 shadow-sm flex flex-col md:flex-row gap-6">
+            <div className="flex-1 space-y-4">
+              <div>
+                <h3 className="text-md font-bold text-slate-800 flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                  WhatsApp Daily Summary Message
+                </h3>
+                <p className="text-xs text-slate-400 font-medium">Ready-to-copy SKU-wise pieces sold across all accounts</p>
+              </div>
 
+              <div className="relative">
+                <pre className="bg-slate-50 border border-slate-200 rounded p-4 text-xs font-mono text-slate-700 max-h-[300px] overflow-y-auto whitespace-pre-wrap select-all leading-relaxed">
+                  {reportData.whatsappMessage}
+                </pre>
+                <button
+                  onClick={handleCopy}
+                  className={`absolute top-3 right-3 p-2 rounded transition-all flex items-center gap-1.5 text-[11px] font-bold shadow-sm ${
+                    copied
+                      ? 'bg-emerald-600 text-white border border-emerald-600'
+                      : 'bg-white hover:bg-slate-50 text-slate-700 border border-slate-200'
+                  }`}
+                >
+                  {copied ? (
+                    <>
+                      <Check size={14} />
+                      Copied!
+                    </>
+                  ) : (
+                    <>
+                      <Copy size={14} />
+                      Copy Message
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+            
+            <div className="md:w-72 bg-emerald-50/50 border border-emerald-100 rounded-lg p-6 flex flex-col justify-center space-y-4">
+              <div className="space-y-2">
+                <h4 className="text-xs font-bold text-emerald-800 uppercase tracking-wider">Instructions</h4>
+                <p className="text-xs text-emerald-700 leading-relaxed font-medium">
+                  This summary lists total pieces sold by individual SKU for today. Click the <strong>Copy Message</strong> button and paste it directly into WhatsApp.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Detailed Grid Table */}
         <div className="bg-white border border-slate-200 rounded-lg p-6 shadow-sm">
@@ -220,7 +277,6 @@ export default function DailyReport() {
                     <th className="py-3 px-4">Product Name</th>
                     <th className="py-3 px-4 font-mono">SKU Code</th>
                     <th className="py-3 px-4">Category</th>
-                    <th className="py-3 px-4 text-center">Color</th>
                     <th className="py-3 px-4 text-center">Qty Sold</th>
                     <th className="py-3 px-4 text-center">Total Labels</th>
                     <th className="py-3 px-4 text-right">Price / Label (₹)</th>
@@ -234,7 +290,6 @@ export default function DailyReport() {
                       <td className="py-3 px-4 font-bold text-slate-800">{row.product_name}</td>
                       <td className="py-3 px-4 font-mono font-bold text-blue-600">{row.sku}</td>
                       <td className="py-3 px-4 text-slate-500 font-medium">{row.category}</td>
-                      <td className="py-3 px-4 text-center font-medium text-slate-600">{row.color || 'Assorted'}</td>
                       <td className="py-3 px-4 text-center font-medium text-slate-700">{row.quantity}</td>
                       <td className="py-3 px-4 text-center font-bold text-blue-600">{row.total_labels}</td>
                       <td className="py-3 px-4 text-right font-medium text-slate-600">

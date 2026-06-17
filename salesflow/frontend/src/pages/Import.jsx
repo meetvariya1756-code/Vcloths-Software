@@ -16,7 +16,6 @@ export default function Import() {
   const [mappingModalSku, setMappingModalSku] = useState(null);
   const [productsList, setProductsList] = useState([]);
   const [selectedProductId, setSelectedProductId] = useState('');
-  const [colorVariant, setColorVariant] = useState('');
   const [sizeVariant, setSizeVariant] = useState('');
   const [mappingError, setMappingError] = useState('');
 
@@ -142,7 +141,6 @@ export default function Import() {
       await api.post('/sku-mappings', {
         marketplace_sku: mappingModalSku,
         product_id: selectedProductId,
-        color_variant: colorVariant,
         size_variant: sizeVariant,
         platform
       });
@@ -172,7 +170,6 @@ export default function Import() {
       // Close modal
       setMappingModalSku(null);
       setSelectedProductId('');
-      setColorVariant('');
       setSizeVariant('');
       setMappingError('');
 
@@ -397,7 +394,7 @@ export default function Import() {
                     <th className="py-3 px-4">Date</th>
                     <th className="py-3 px-4">Raw SKU (from PDF)</th>
                     <th className="py-3 px-4 text-center">Size</th>
-                    <th className="py-3 px-4 text-center">Color</th>
+
                     <th className="py-3 px-4">Mapped Product Name</th>
                     <th className="py-3 px-4 text-center">Qty</th>
                     <th className="py-3 px-4 text-center">Labels/Unit</th>
@@ -428,11 +425,7 @@ export default function Import() {
                           {row.size || 'N/A'}
                         </span>
                       </td>
-                      <td className="py-3 px-4 text-center">
-                        <span className="px-2 py-1 rounded bg-slate-100 font-semibold text-slate-700 text-[11px] border border-slate-200">
-                          {row.color || 'N/A'}
-                        </span>
-                      </td>
+
                       <td className="py-3 px-4">
                         {row.mapped ? (
                           <span className="font-semibold text-slate-800">{row.mapped_product_name}</span>
@@ -514,27 +507,15 @@ export default function Import() {
                 </select>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Color Variant</label>
-                  <input
-                    type="text"
-                    value={colorVariant}
-                    onChange={(e) => setColorVariant(e.target.value)}
-                    className="w-full px-3 py-2 border border-slate-200 rounded text-sm"
-                    placeholder="e.g. BGY"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Size Variant</label>
-                  <input
-                    type="text"
-                    value={sizeVariant}
-                    onChange={(e) => setSizeVariant(e.target.value)}
-                    className="w-full px-3 py-2 border border-slate-200 rounded text-sm"
-                    placeholder="e.g. L"
-                  />
-                </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Size Variant</label>
+                <input
+                  type="text"
+                  value={sizeVariant}
+                  onChange={(e) => setSizeVariant(e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-200 rounded text-sm"
+                  placeholder="e.g. L"
+                />
               </div>
 
               <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">

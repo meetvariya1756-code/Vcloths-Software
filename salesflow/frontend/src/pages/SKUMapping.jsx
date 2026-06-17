@@ -16,7 +16,6 @@ export default function SKUMapping() {
   // Form Fields
   const [marketplaceSku, setMarketplaceSku] = useState('');
   const [selectedProductId, setSelectedProductId] = useState('');
-  const [colorVariant, setColorVariant] = useState('');
   const [sizeVariant, setSizeVariant] = useState('');
   const [platform, setPlatform] = useState('meesho');
 
@@ -58,14 +57,12 @@ export default function SKUMapping() {
       await api.post('/sku-mappings', {
         marketplace_sku: marketplaceSku,
         product_id: parseInt(selectedProductId),
-        color_variant: colorVariant,
         size_variant: sizeVariant,
         platform
       });
       setIsAddModalOpen(false);
       setMarketplaceSku('');
       setSelectedProductId('');
-      setColorVariant('');
       setSizeVariant('');
       setPlatform('meesho');
       fetchMappings();
@@ -105,8 +102,7 @@ export default function SKUMapping() {
 
   const filteredMappings = mappings.filter(m => 
     m.marketplace_sku.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    m.product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (m.color_variant && m.color_variant.toLowerCase().includes(searchQuery.toLowerCase()))
+    m.product.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   return (
@@ -155,7 +151,6 @@ export default function SKUMapping() {
                 <tr className="bg-slate-50 border-b border-slate-200 text-slate-500 font-semibold uppercase">
                   <th className="py-3.5 px-6">Marketplace SKU</th>
                   <th className="py-3.5 px-4">Sales Platform</th>
-                  <th className="py-3.5 px-4">Color Variant</th>
                   <th className="py-3.5 px-4">Size Variant</th>
                   <th className="py-3.5 px-4">Mapped Internal Product Model</th>
                   <th className="py-3.5 px-4 text-right">Base Price (₹)</th>
@@ -170,9 +165,6 @@ export default function SKUMapping() {
                     </td>
                     <td className="py-3.5 px-4">
                       {getPlatformBadge(m.platform)}
-                    </td>
-                    <td className="py-3.5 px-4 font-semibold text-slate-600">
-                      {m.color_variant || <span className="text-slate-300 font-normal">N/A</span>}
                     </td>
                     <td className="py-3.5 px-4 font-semibold text-slate-600">
                       {m.size_variant || <span className="text-slate-300 font-normal">N/A</span>}
@@ -253,27 +245,15 @@ export default function SKUMapping() {
                 </select>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Color Variant (Optional)</label>
-                  <input
-                    type="text"
-                    value={colorVariant}
-                    onChange={(e) => setColorVariant(e.target.value)}
-                    className="w-full px-3 py-2 border border-slate-200 rounded text-sm"
-                    placeholder="e.g. BGY"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Size Variant (Optional)</label>
-                  <input
-                    type="text"
-                    value={sizeVariant}
-                    onChange={(e) => setSizeVariant(e.target.value)}
-                    className="w-full px-3 py-2 border border-slate-200 rounded text-sm"
-                    placeholder="e.g. XL"
-                  />
-                </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Size Variant (Optional)</label>
+                <input
+                  type="text"
+                  value={sizeVariant}
+                  onChange={(e) => setSizeVariant(e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-200 rounded text-sm"
+                  placeholder="e.g. XL"
+                />
               </div>
 
               <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
@@ -314,8 +294,8 @@ export default function SKUMapping() {
             <form onSubmit={handleBulkImportSubmit} className="space-y-4">
               <div className="bg-slate-50 border border-slate-200 rounded p-3 text-[10px] text-slate-500 space-y-1">
                 <p className="font-bold uppercase flex items-center gap-1"><HelpCircle size={12} /> Expected Format (including headers):</p>
-                <p className="font-mono">marketplace_sku, product_name_or_id, color_variant, size_variant, platform</p>
-                <p className="font-mono">MEN-WB-BGY-PC-3, Men WB Boxer PC-3, BGY, L, meesho</p>
+                <p className="font-mono">marketplace_sku, product_name_or_id, size_variant, platform</p>
+                <p className="font-mono">MEN-WB-BGY-PC-3, Men WB Boxer PC-3, L, meesho</p>
               </div>
 
               <div>

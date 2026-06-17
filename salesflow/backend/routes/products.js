@@ -61,22 +61,14 @@ router.get('/:id', async (req, res) => {
       _sum: { quantity: true, revenue: true }
     });
 
-    // Color-wise breakdown
-    const colorBreakdown = await prisma.salesRecord.findMany({
-      where: { product_id: parseInt(id) },
-      include: { product: { include: { sku_mappings: true } } }
+    // Sales breakdown for stats aggregation
+    const salesBreakdown = await prisma.salesRecord.findMany({
+      where: { product_id: parseInt(id) }
     });
 
-    // Aggregate color variants from sku_mappings
-    const colorStats = {};
     const accountStats = {};
 
-    for (const record of colorBreakdown) {
-      // Find the mapped color
-      const mapping = product.sku_mappings.find(m => m.marketplace_sku === record.marketplace_sku);
-      const color = mapping?.color_variant || 'Unknown';
-      colorStats[color] = (colorStats[color] || 0) + record.quantity;
-
+    for (const record of salesBreakdown) {
       // Account stats
       const accId = record.account_id;
       if (!accountStats[accId]) {
@@ -98,7 +90,7 @@ router.get('/:id', async (req, res) => {
           quantity: salesMonth._sum.quantity || 0,
           revenue: Number(salesMonth._sum.revenue || 0)
         },
-        colors: Object.entries(colorStats).map(([color, quantity]) => ({ color, quantity })),
+        colors: [],
         accounts: Object.values(accountStats)
       }
     });

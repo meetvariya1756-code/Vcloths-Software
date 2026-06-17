@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
+const { scrapeMeeshoCatalog } = require('../meesho-scraper');
 
 // GET all accounts
 router.get('/', async (req, res) => {
@@ -196,6 +197,199 @@ router.get('/:id/summary', async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to fetch account summary' });
+  }
+});
+
+// GET all imported SKUs for an account
+router.get('/:id/imported-skus', async (req, res) => {
+  const { id } = req.params;
+  try {
+    const skus = await prisma.importedSku.findMany({
+      where: { account_id: parseInt(id) },
+      include: { product: true },
+      orderBy: { marketplace_sku: 'asc' }
+    });
+    res.json(skus);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to fetch imported SKUs' });
+  }
+});
+
+// POST sync Meesho account catalog — real Puppeteer-based scraper
+router.post('/:id/meesho-sync', async (req, res) => {
+  const { id } = req.params;
+  const { meesho_id, password } = req.body;
+
+  try {
+    let account = await prisma.account.findUnique({
+      where: { id: parseInt(id) }
+    });
+    if (!account) {
+      return res.status(404).json({ error: 'Account not found' });
+    }
+
+    // ── Credentials Lock and Validate ────────────────────────────────────────
+    const hasLocked = !!(account.meesho_username && account.meesho_password);
+    let activeId = meesho_id?.trim();
+    let activePassword = password?.trim();
+
+    if (!activeId || !activePassword) {
+      if (hasLocked) {
+        activeId = account.meesho_username;
+        activePassword = account.meesho_password;
+      } else {
+        return res.status(400).json({ error: 'Meesho ID and password are required' });
+      }
+    } else {
+      if (hasLocked) {
+        if (account.meesho_username !== activeId || account.meesho_password !== activePassword) {
+          return res.status(400).json({
+            error: 'Invalid Meesho Supplier credentials. The entered ID or Password does not match the credentials locked to this account.'
+          });
+        }
+      }
+    }
+
+    // ── Real Puppeteer Scraper ────────────────────────────────────────────────
+    // Track progress steps to send in final response
+    const progressLog = [];
+    const onStep = (step, msg) => {
+      console.log(`[Meesho Scraper] Step ${step}: ${msg}`);
+      progressLog.push({ step, msg });
+    };
+
+    let rawSkus;
+    try {
+      rawSkus = await scrapeMeeshoCatalog({
+        meeshoId: activeId,
+        password: activePassword,
+        accountName: account.name,
+        onStep
+      });
+    } catch (scraperErr) {
+      console.error('[Meesho Scraper] Error:', scraperErr.message);
+      // Return a structured error the frontend can display nicely
+      return res.status(422).json({
+        error: scraperErr.message,
+        hint: 'Make sure your Meesho Supplier Panel credentials are correct and that supplier.meesho.com is accessible.',
+        progress: progressLog
+      });
+    }
+
+    if (!rawSkus || rawSkus.length === 0) {
+      return res.status(422).json({
+        error: 'No catalogs found in your Meesho Supplier Panel. Make sure you have active listings.',
+        progress: progressLog
+      });
+    }
+
+    // On successful sync, lock/save the credentials in the database if not already done
+    if (!hasLocked) {
+      account = await prisma.account.update({
+        where: { id: parseInt(id) },
+        data: {
+          meesho_username: activeId,
+          meesho_password: activePassword
+        }
+      });
+    }
+
+    // ── Upsert into database ─────────────────────────────────────────────────
+    const imported = [];
+    for (const sku of rawSkus) {
+      const item = await prisma.importedSku.upsert({
+        where: { marketplace_sku: sku.marketplace_sku },
+        update: {
+          account_id: parseInt(id),
+          title: sku.title || null,
+          color_variant: sku.color_variant || null,
+          size_variant: sku.size_variant || null
+        },
+        create: {
+          account_id: parseInt(id),
+          marketplace_sku: sku.marketplace_sku,
+          title: sku.title || null,
+          color_variant: sku.color_variant || null,
+          size_variant: sku.size_variant || null
+        }
+      });
+      imported.push(item);
+    }
+
+    res.json({
+      success: true,
+      count: imported.length,
+      skus: imported,
+      progress: progressLog
+    });
+
+  } catch (err) {
+    console.error('[Meesho Sync Route] Error:', err);
+    res.status(500).json({ error: 'Failed to sync Meesho catalog: ' + err.message });
+  }
+});
+
+// PUT map imported SKU to a Master Product model
+router.put('/:id/imported-skus/:skuId/map', async (req, res) => {
+  const { skuId } = req.params;
+  const { product_id, color_variant, size_variant } = req.body;
+  if (!product_id) {
+    return res.status(400).json({ error: 'Product ID is required to map SKU' });
+  }
+
+  try {
+    // 1. Update ImportedSku in db
+    const imported = await prisma.importedSku.update({
+      where: { id: parseInt(skuId) },
+      data: {
+        product_id: parseInt(product_id),
+        color_variant: color_variant || null,
+        size_variant: size_variant || null
+      },
+      include: { product: true }
+    });
+
+    // 2. Synchronize main SkuMapping for PDF parsing engine
+    await prisma.skuMapping.upsert({
+      where: { marketplace_sku: imported.marketplace_sku },
+      update: {
+        product_id: parseInt(product_id),
+        color_variant: color_variant || null,
+        size_variant: size_variant || null,
+        platform: 'meesho'
+      },
+      create: {
+        marketplace_sku: imported.marketplace_sku,
+        product_id: parseInt(product_id),
+        color_variant: color_variant || null,
+        size_variant: size_variant || null,
+        platform: 'meesho'
+      }
+    });
+
+    res.json(imported);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to map SKU: ' + err.message });
+  }
+});
+
+// POST reset credentials for a Meesho account
+router.post('/:id/meesho-reset', async (req, res) => {
+  const { id } = req.params;
+  try {
+    const account = await prisma.account.update({
+      where: { id: parseInt(id) },
+      data: {
+        meesho_username: null,
+        meesho_password: null
+      }
+    });
+    res.json({ success: true, message: 'Meesho credentials reset successfully for this account.', account });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to reset credentials: ' + err.message });
   }
 });
 

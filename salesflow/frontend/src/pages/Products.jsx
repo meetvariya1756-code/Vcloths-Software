@@ -249,7 +249,7 @@ export default function Products() {
                             </div>
 
                             {/* Charts & Mapped SKUs Grid */}
-                            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                               
                               {/* SKU Mapping list */}
                               <div className="bg-white border border-slate-200 rounded p-4 shadow-sm flex flex-col justify-between">
@@ -259,35 +259,15 @@ export default function Products() {
                                 <div className="space-y-2 max-h-48 overflow-y-auto">
                                   {expandedProductDetails.product.sku_mappings.length > 0 ? (
                                     expandedProductDetails.product.sku_mappings.map(mapping => (
-                                      <div key={mapping.id} className="flex items-center justify-between p-2 border border-slate-100 rounded text-xs">
-                                        <span className="sku-badge">{mapping.marketplace_sku}</span>
-                                        <div className="flex items-center gap-2">
-                                          {mapping.color_variant && <span className="bg-slate-100 px-1.5 py-0.5 rounded text-[10px] text-slate-500 font-medium">{mapping.color_variant}</span>}
-                                          {getPlatformBadge(mapping.platform)}
+                                        <div key={mapping.id} className="flex items-center justify-between p-2 border border-slate-100 rounded text-xs">
+                                          <span className="sku-badge">{mapping.marketplace_sku}</span>
+                                          <div className="flex items-center gap-2">
+                                            {getPlatformBadge(mapping.platform)}
+                                          </div>
                                         </div>
-                                      </div>
                                     ))
                                   ) : (
                                     <div className="text-slate-400 text-xs py-4 text-center">No SKUs mapped yet</div>
-                                  )}
-                                </div>
-                              </div>
-
-                              {/* Color wise chart */}
-                              <div className="bg-white border border-slate-200 rounded p-4 shadow-sm flex flex-col justify-between">
-                                <h4 className="text-xs font-bold text-slate-700 uppercase tracking-tight mb-3">Color-wise Breakdown</h4>
-                                <div className="h-44 w-full">
-                                  {expandedProductDetails.stats.colors.length > 0 ? (
-                                    <ResponsiveContainer width="100%" height="100%">
-                                      <BarChart data={expandedProductDetails.stats.colors}>
-                                        <XAxis dataKey="color" tick={{ fontSize: 9 }} />
-                                        <YAxis tick={{ fontSize: 9 }} />
-                                        <Tooltip />
-                                        <Bar dataKey="quantity" fill="#f97316" radius={[2, 2, 0, 0]} />
-                                      </BarChart>
-                                    </ResponsiveContainer>
-                                  ) : (
-                                    <div className="h-full flex items-center justify-center text-slate-400 text-xs">No color statistics</div>
                                   )}
                                 </div>
                               </div>

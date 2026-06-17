@@ -143,6 +143,14 @@ def extract_sales_from_pdf(file_path, original_filename=None):
                 
             page_records = []
             
+            # Extract pack size from description in the text
+            pack_size = None
+            for line in lines:
+                pack_match = re.search(r"pack\s*of\s*(\d+)", line, re.IGNORECASE)
+                if pack_match:
+                    pack_size = int(pack_match.group(1))
+                    break
+            
             # 2. Extract Product Details via robust line parsing
             product_details_found = False
             for idx, line in enumerate(lines):
@@ -150,13 +158,32 @@ def extract_sales_from_pdf(file_path, original_filename=None):
                     if idx + 2 < len(lines) and "SKU" in lines[idx + 1] and "Qty" in lines[idx + 1]:
                         data_line = lines[idx + 2]
                         parts = data_line.split()
-                        if len(parts) >= 5:
+                        if len(parts) >= 4:
                             product_details_found = True
                             order_id = parts[-1]
                             color_val = parts[-2]
                             qty_val = parse_qty(parts[-3])
-                            size_val = parts[-4]
-                            raw_sku_str = " ".join(parts[:-4])
+                            
+                            if len(parts) >= 5:
+                                # Check if size has multiple words (e.g. "14-15 Years", "15-16 Yrs")
+                                if len(parts) >= 6 and parts[-4].lower() in ["years", "yr", "yrs", "year"]:
+                                    size_val = f"{parts[-5]} {parts[-4]}"
+                                    raw_sku_str = " ".join(parts[:-5])
+                                else:
+                                    size_val = parts[-4]
+                                    raw_sku_str = " ".join(parts[:-4])
+                            else:
+                                size_val = ""
+                                raw_sku_str = parts[0]
+                                
+                            # Check for wrapped SKU parts on subsequent lines before TAX INVOICE/Original For Recipient etc.
+                            current_idx = idx + 3
+                            while current_idx < len(lines):
+                                next_line = lines[current_idx].strip()
+                                if not next_line or any(h in next_line for h in ["TAX INVOICE", "Original For Recipient", "BILL TO", "Purchase Order", "Description", "Other Charges"]):
+                                    break
+                                raw_sku_str += " " + next_line
+                                current_idx += 1
                             
                             # Clean SKU printer/order suffixes dynamically and merge wrap lines
                             cleaned_sku = re.sub(r'([_-][a-zA-Z0-9]+)$', '', raw_sku_str).replace("\n", "").replace(" ", "")
@@ -169,6 +196,8 @@ def extract_sales_from_pdf(file_path, original_filename=None):
                                 "date": date_val,
                                 "order_id": order_id
                             }
+                            if pack_size is not None:
+                                rec["pack_size"] = pack_size
                             records.append(rec)
                             page_records.append(rec)
                             break
@@ -223,6 +252,8 @@ def extract_sales_from_pdf(file_path, original_filename=None):
                                 "date": date_val,
                                 "order_id": order_id
                             }
+                            if pack_size is not None:
+                                rec["pack_size"] = pack_size
                             records.append(rec)
                             page_records.append(rec)
 
@@ -294,6 +325,8 @@ def extract_sales_from_pdf(file_path, original_filename=None):
                         "date": date_val,
                         "order_id": order_id
                     }
+                    if pack_size is not None:
+                        rec["pack_size"] = pack_size
                     records.append(rec)
                     page_records.append(rec)
                             

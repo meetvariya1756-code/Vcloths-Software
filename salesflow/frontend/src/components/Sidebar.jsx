@@ -9,7 +9,8 @@ import {
   Users, 
   CalendarDays, 
   BarChart3, 
-  LogOut 
+  LogOut,
+  RefreshCw
 } from 'lucide-react';
 
 export default function Sidebar() {
@@ -27,7 +28,7 @@ export default function Sidebar() {
     { to: '/import', name: 'PDF Import', icon: <FileUp size={18} /> },
     { to: '/products', name: 'Products', icon: <Package size={18} /> },
     { to: '/sku-mappings', name: 'SKU Mappings', icon: <Shuffle size={18} /> },
-    { to: '/bulk-add-sku', name: 'Bulk Add SKU', icon: <FileSpreadsheet size={18} /> },
+    { to: '/meesho-sync', name: 'Meesho Sync', icon: <RefreshCw size={18} /> },
     { to: '/accounts', name: 'Accounts', icon: <Users size={18} /> },
     { to: '/daily-report', name: 'Daily Report', icon: <CalendarDays size={18} /> },
     { to: '/monthly-report', name: 'Monthly Report', icon: <BarChart3 size={18} /> },

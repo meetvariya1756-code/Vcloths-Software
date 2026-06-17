@@ -9,71 +9,79 @@ function toISTDateString(date) {
   return new Date(date.getTime() + (5.5 * 60 * 60 * 1000)).toISOString().split('T')[0];
 }
 
-// Helper to group SKUs under parent categories dynamically
-function getGroupedSku(sku) {
+// Helper to standardize SKUs based on product name and extract the pieces multiplier
+function getStandardizedSku(sku, productName) {
   if (!sku) return "Unknown";
-  const upper = sku.toUpperCase().trim();
-  
-  // Extract PC pieces number multiplier
+  const upperSku = sku.toUpperCase().trim();
+  const pName = (productName || '').toLowerCase();
+
+  // 1. Determine base prefix from product name
+  let basePrefix = 'OTHER';
+  if (pName.includes('stripe shorts')) {
+    basePrefix = 'STRIP-SH-WB-PC';
+  } else if (pName.includes('cord shorts')) {
+    basePrefix = 'CORD-SH-PC';
+  } else if (pName.includes('zipper track')) {
+    basePrefix = '(ZIPER)-TRACK-PC';
+  } else if (pName.includes('3 patti track')) {
+    basePrefix = '3-PATTI-TRACK-PC';
+  } else if (pName.includes('kids track')) {
+    basePrefix = 'KIDS-TRACK-PC';
+  } else if (pName.includes('track pants')) {
+    basePrefix = 'TRACKPC';
+  } else if (pName.includes('kids barfi')) {
+    basePrefix = 'KIDS-BARFI-PC';
+  } else if (pName.includes('barfi')) {
+    basePrefix = 'BARFI-PC';
+  } else if (pName.includes('ladies wb')) {
+    basePrefix = 'LDS-WB-BGY';
+  } else if (pName.includes('ladies gb')) {
+    basePrefix = 'LDS-GB-BGY';
+  } else if (pName.includes('men wb')) {
+    basePrefix = 'MEN-WB';
+  } else if (pName.includes('men gb')) {
+    basePrefix = 'MEN-GB';
+  } else if (pName.includes('kids wb')) {
+    basePrefix = 'KIDS-WB-BGY';
+  } else if (pName.includes('kids gb')) {
+    basePrefix = 'KIDS-GB-BGY';
+  } else if (pName.includes('shorts')) {
+    basePrefix = 'SHPC';
+  } else if (pName.includes('cargo')) {
+    basePrefix = 'CARGO-PC';
+  } else {
+    // Fallback parser if product name doesn't match
+    let clean = upperSku.replace(/PC[-_]?\d+/i, '').replace(/[-_]?\d+$/, '').trim();
+    clean = clean.replace(/[-_+]+$/, '').trim();
+    basePrefix = clean || 'OTHER';
+  }
+
+  // 2. Extract pcNum from raw SKU
   let pcNum = null;
-  const pcMatch = upper.match(/PC[-_]?(\d+)/i);
+  const pcMatch = upperSku.match(/PC[-_]?(\d+)/i);
   if (pcMatch) {
     pcNum = parseInt(pcMatch[1]);
-  } else {
-    const trailingMatch = upper.match(/[-_](\d+)$/);
-    if (trailingMatch) {
-      pcNum = parseInt(trailingMatch[1]);
-    }
   }
-  
-  // Define groups based on the patterns from the image
-  const groups = [
-    // 1. Shorts Category
-    { key: 'STRIP-SH-WB', name: 'Stripe Shorts' },
-    { key: 'CORD-SH', name: 'Cord Shorts' },
-    { key: 'SHPC', name: 'Shorts' },
-    { key: 'SORT', name: 'Shorts' },
-    { key: 'SHORTS', name: 'Shorts' },
 
-    // 2. Track Category
-    { key: 'ZIPER-TRACK', name: 'Zipper Track' },
-    { key: '3-PATTI-TRACK', name: '3 Patti Track' },
-    { key: 'KIDS-TRACK', name: 'Kids Track' },
-    { key: 'TRACK-PC', name: 'Track Pants' },
-
-    // 3. Barfi Category
-    { key: 'KIDS-BARFI', name: 'Kids Barfi' },
-    { key: 'KIDS-BURFI', name: 'Kids Barfi' },
-    { key: 'BARFI', name: 'Barfi' },
-    { key: 'BURFI', name: 'Barfi' },
-
-    // 4. Ladies Category
-    { key: 'LDS-WB', name: 'Ladies WB' },
-    { key: 'LDS-GB', name: 'Ladies GB' },
-
-    // 5. Men's Category
-    { key: 'MEN-WB', name: 'Men WB' },
-    { key: 'MEN-GB', name: 'Men GB' },
-
-    // 6. Kids Category
-    { key: 'KIDS-WB', name: 'Kids WB' },
-    { key: 'KIDS-GB', name: 'Kids GB' }
-  ];
-
-  for (const g of groups) {
-    if (upper.includes(g.key)) {
-      if (pcNum !== null) {
-        return `PC-${pcNum} (${g.name})`;
-      }
-      return g.name;
+  if (pcNum === null) {
+    const endMatch = upperSku.match(/[-_](\d+)$/);
+    if (endMatch) {
+      pcNum = parseInt(endMatch[1]);
     }
   }
 
-  // Fallback default parser
-  if (pcNum !== null) {
-    return `PC-${pcNum} (${sku})`;
+  if (pcNum === null) {
+    const firstNumMatch = upperSku.match(/\d+/);
+    if (firstNumMatch) {
+      pcNum = parseInt(firstNumMatch[0]);
+    }
   }
-  return sku;
+
+  if (pcNum === null) {
+    pcNum = 1;
+  }
+
+  return `${basePrefix}-${pcNum}`;
 }
 
 // GET Daily Report
@@ -82,8 +90,32 @@ router.get('/daily', async (req, res) => {
 
   try {
     let targetDate = new Date();
+    let isValidDate = true;
     if (date) {
       targetDate = new Date(date);
+      if (isNaN(targetDate.getTime())) {
+        isValidDate = false;
+      } else {
+        const yearVal = targetDate.getFullYear();
+        if (yearVal < 1000 || yearVal > 9999) {
+          isValidDate = false;
+        }
+      }
+    }
+
+    if (!isValidDate) {
+      const activeAccountsCount = await prisma.account.count({ where: { is_active: true } }).catch(() => 0);
+      return res.json({
+        metrics: {
+          totalPieces: 0,
+          totalLabels: 0,
+          totalRevenue: 0,
+          activeAccounts: activeAccountsCount
+        },
+        platformSummary: [],
+        table: [],
+        whatsappMessage: ""
+      });
     }
 
     const startOfDay = new Date(targetDate);
@@ -168,7 +200,7 @@ router.get('/daily', async (req, res) => {
           platform: s.account.platform
         };
       }
-      
+
       grouped[groupKey].quantity += s.quantity;
       grouped[groupKey].total_labels += s.labels_total;
       grouped[groupKey].revenue += s.revenue;
@@ -202,6 +234,54 @@ router.get('/daily', async (req, res) => {
       revenue: Number(metrics.revenue)
     }));
 
+    // Generate WhatsApp Summary Message (respects selected filters)
+    const allDailySales = await prisma.salesRecord.findMany({
+      where,
+      include: {
+        product: true
+      }
+    });
+
+    const prodGroups = {};
+    for (const s of allDailySales) {
+      const pName = s.product.name;
+      if (!prodGroups[pName]) {
+        prodGroups[pName] = {};
+      }
+      const stdSku = getStandardizedSku(s.marketplace_sku, pName);
+      prodGroups[pName][stdSku] = (prodGroups[pName][stdSku] || 0) + s.quantity;
+    }
+
+    let displayDateStr = "";
+    if (date) {
+      const parts = date.split('-');
+      if (parts.length === 3) {
+        displayDateStr = `${parseInt(parts[2])}-${parseInt(parts[1])}-${parts[0]}`;
+      }
+    }
+    if (!displayDateStr) {
+      const istOffset = 5.5 * 60 * 60 * 1000;
+      const istDate = new Date(new Date().getTime() + istOffset);
+      const day = istDate.getUTCDate();
+      const month = istDate.getUTCMonth() + 1;
+      const year = istDate.getUTCFullYear();
+      displayDateStr = `${day}-${month}-${year}`;
+    }
+
+    let whatsappMessage = `${displayDateStr}\n\n`;
+    const sortedProds = Object.keys(prodGroups).sort();
+    sortedProds.forEach((pName, idx) => {
+      const skus = prodGroups[pName];
+      const sortedSkus = Object.keys(skus).sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }));
+      sortedSkus.forEach(sku => {
+        whatsappMessage += `${sku} - ${skus[sku]}\n`;
+      });
+      if (idx < sortedProds.length - 1) {
+        whatsappMessage += '\n';
+      }
+    });
+    whatsappMessage = whatsappMessage.trim();
+
     res.json({
       metrics: {
         totalPieces,
@@ -210,7 +290,8 @@ router.get('/daily', async (req, res) => {
         activeAccounts: activeAccountsCount
       },
       platformSummary: platformList,
-      table: tableData
+      table: tableData,
+      whatsappMessage
     });
 
   } catch (err) {
@@ -222,11 +303,18 @@ router.get('/daily', async (req, res) => {
 // GET Monthly Report
 router.get('/monthly', async (req, res) => {
   const { month, year } = req.query; // 1-indexed month (1-12)
-  
+
   try {
     const now = new Date();
-    const targetMonth = month ? parseInt(month) - 1 : now.getMonth();
-    const targetYear = year ? parseInt(year) : now.getFullYear();
+    let targetMonth = month ? parseInt(month) - 1 : now.getMonth();
+    let targetYear = year ? parseInt(year) : now.getFullYear();
+
+    if (isNaN(targetMonth) || targetMonth < 0 || targetMonth > 11) {
+      targetMonth = now.getMonth();
+    }
+    if (isNaN(targetYear) || targetYear < 1000 || targetYear > 9999) {
+      targetYear = now.getFullYear();
+    }
 
     const startOfMonth = new Date(targetYear, targetMonth, 1);
     const endOfMonth = new Date(targetYear, targetMonth + 1, 0, 23, 59, 59, 999);
@@ -338,7 +426,12 @@ router.get('/daily/export', async (req, res) => {
 
   try {
     let targetDate = new Date();
-    if (date) targetDate = new Date(date);
+    if (date) {
+      targetDate = new Date(date);
+      if (isNaN(targetDate.getTime()) || targetDate.getFullYear() < 1000 || targetDate.getFullYear() > 9999) {
+        targetDate = new Date();
+      }
+    }
 
     const startOfDay = new Date(targetDate);
     startOfDay.setHours(0, 0, 0, 0);
@@ -365,7 +458,6 @@ router.get('/daily/export', async (req, res) => {
       { header: 'Product Name', key: 'product_name', width: 25 },
       { header: 'SKU Code', key: 'sku', width: 20 },
       { header: 'Category', key: 'category', width: 15 },
-      { header: 'Color', key: 'color', width: 12 },
       { header: 'Size', key: 'size', width: 10 },
       { header: 'Quantity', key: 'quantity', width: 10 },
       { header: 'Labels / Unit', key: 'labels_per_unit', width: 15 },
@@ -384,7 +476,6 @@ router.get('/daily/export', async (req, res) => {
       const groupKey = `${skuKey}_${accountId}`;
 
       const mapping = mappingsMap.get(skuKey.toLowerCase());
-      const color = mapping ? mapping.color_variant || 'Assorted' : 'Assorted';
       const size = mapping ? mapping.size_variant || 'Free' : 'Free';
 
       if (!grouped[groupKey]) {
@@ -392,7 +483,6 @@ router.get('/daily/export', async (req, res) => {
           product_name: s.product.name,
           sku: skuKey,
           category: s.product.category,
-          color,
           size,
           quantity: 0,
           labels_per_unit: s.product.labels_per_unit,
@@ -415,7 +505,6 @@ router.get('/daily/export', async (req, res) => {
         product_name: g.product_name,
         sku: g.sku,
         category: g.category,
-        color: g.color,
         size: g.size,
         quantity: g.quantity,
         labels_per_unit: g.labels_per_unit,
@@ -448,8 +537,15 @@ router.get('/monthly/export', async (req, res) => {
 
   try {
     const now = new Date();
-    const targetMonth = month ? parseInt(month) - 1 : now.getMonth();
-    const targetYear = year ? parseInt(year) : now.getFullYear();
+    let targetMonth = month ? parseInt(month) - 1 : now.getMonth();
+    let targetYear = year ? parseInt(year) : now.getFullYear();
+
+    if (isNaN(targetMonth) || targetMonth < 0 || targetMonth > 11) {
+      targetMonth = now.getMonth();
+    }
+    if (isNaN(targetYear) || targetYear < 1000 || targetYear > 9999) {
+      targetYear = now.getFullYear();
+    }
 
     const startOfMonth = new Date(targetYear, targetMonth, 1);
     const endOfMonth = new Date(targetYear, targetMonth + 1, 0, 23, 59, 59, 999);
