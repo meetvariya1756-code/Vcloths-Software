@@ -6,6 +6,7 @@ import Import from './pages/Import';
 import Products from './pages/Products';
 import SKUMapping from './pages/SKUMapping';
 import MeeshoSync from './pages/MeeshoSync';
+import FlipkartSync from './pages/FlipkartSync';
 import Accounts from './pages/Accounts';
 import DailyReport from './pages/DailyReport';
 import MonthlyReport from './pages/MonthlyReport';
@@ -45,6 +46,7 @@ export default function App() {
         <Route path="/products" element={<ProtectedLayout><Products /></ProtectedLayout>} />
         <Route path="/sku-mappings" element={<ProtectedLayout><SKUMapping /></ProtectedLayout>} />
         <Route path="/meesho-sync" element={<ProtectedLayout><MeeshoSync /></ProtectedLayout>} />
+        <Route path="/flipkart-sync" element={<ProtectedLayout><FlipkartSync /></ProtectedLayout>} />
         <Route path="/accounts" element={<ProtectedLayout><Accounts /></ProtectedLayout>} />
         <Route path="/daily-report" element={<ProtectedLayout><DailyReport /></ProtectedLayout>} />
         <Route path="/monthly-report" element={<ProtectedLayout><MonthlyReport /></ProtectedLayout>} />

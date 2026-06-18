@@ -84,6 +84,14 @@ router.post('/upload', upload.single('file'), async (req, res) => {
   const filename = req.file.originalname;
 
   try {
+    const account = await prisma.account.findUnique({
+      where: { id: accountId }
+    });
+    if (!account) {
+      if (req.file) fs.unlinkSync(req.file.path);
+      return res.status(404).json({ error: 'Account not found' });
+    }
+
     // 1. Check if already imported
     const existing = await prisma.pdfImport.findUnique({
       where: {
@@ -154,7 +162,7 @@ router.post('/upload', upload.single('file'), async (req, res) => {
 
     for (const r of parsedRecords) {
       const recordDate = finalDate || r.date;
-      const mapping = await findBestSkuMapping(prisma, r.raw_sku);
+      const mapping = await findBestSkuMapping(prisma, r.raw_sku, account.platform);
       if (mapping) {
         // Fetch custom account price if exists, otherwise base product price
         const accountPrice = await prisma.accountPrice.findUnique({

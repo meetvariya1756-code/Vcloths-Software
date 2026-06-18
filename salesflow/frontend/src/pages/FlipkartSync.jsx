@@ -7,7 +7,7 @@ import {
 import api from '../api';
 import Header from '../components/Header';
 
-export default function MeeshoSync() {
+export default function FlipkartSync() {
   const [accounts, setAccounts] = useState([]);
   const [importedSkus, setImportedSkus] = useState([]);
   const [products, setProducts] = useState([]);
@@ -33,15 +33,15 @@ export default function MeeshoSync() {
   const [productSearch, setProductSearch] = useState('');
 
   useEffect(() => {
-    fetchMeeshoAccounts();
+    fetchFlipkartAccounts();
     fetchMasterProducts();
     fetchAllImportedSkus();
   }, []);
 
-  const fetchMeeshoAccounts = async () => {
+  const fetchFlipkartAccounts = async () => {
     try {
       const response = await api.get('/accounts');
-      setAccounts(response.data.filter(acc => acc.platform.toLowerCase() === 'meesho'));
+      setAccounts(response.data.filter(acc => acc.platform.toLowerCase() === 'flipkart'));
     } catch (e) { console.error(e); }
   };
 
@@ -65,7 +65,7 @@ export default function MeeshoSync() {
       await api.post(`/accounts/${accountId}/sync`);
       alert('Sync triggered in the background. It will automatically update SKUs shortly.');
       setTimeout(() => {
-        fetchMeeshoAccounts();
+        fetchFlipkartAccounts();
         fetchAllImportedSkus();
       }, 2000);
     } catch (err) {
@@ -162,7 +162,8 @@ export default function MeeshoSync() {
   // ── FILTER ────────────────────────────────────────────────────────────────
 
   const filteredSkus = importedSkus.filter(sku => {
-    if (sku.account?.platform?.toLowerCase() !== 'meesho') return false;
+    // Only display Flipkart SKUs
+    if (sku.account?.platform !== 'flipkart') return false;
     if (accountIdFilter && sku.account_id.toString() !== accountIdFilter) return false;
     if (statusFilter === 'mapped' && !sku.product_id) return false;
     if (statusFilter === 'unmapped' && sku.product_id) return false;
@@ -171,7 +172,7 @@ export default function MeeshoSync() {
       return (
         (sku.marketplace_sku || '').toLowerCase().includes(q) ||
         (sku.title || '').toLowerCase().includes(q) ||
-        (sku.account?.meesho_supplier_id || '').toLowerCase().includes(q)
+        (sku.account?.flipkart_supplier_id || '').toLowerCase().includes(q)
       );
     }
     return true;
@@ -189,7 +190,7 @@ export default function MeeshoSync() {
 
   return (
     <div className="flex-1 bg-slate-50 min-h-screen pb-12">
-      <Header title="Meesho Catalog Sync & Master SKU Hub" />
+      <Header title="Flipkart Catalog Sync & Master SKU Hub" />
 
       <div className="p-8 space-y-8 max-w-[1600px] mx-auto">
 
@@ -198,16 +199,16 @@ export default function MeeshoSync() {
           <div className="flex justify-between items-center mb-6">
             <div>
               <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2">
-                <Layers size={16} className="text-blue-500" />
-                Connected Meesho Accounts
+                <Layers size={16} className="text-orange-500" />
+                Connected Flipkart Accounts
               </h3>
               <p className="text-xs text-slate-400 font-medium mt-1">
-                Manage credentials and synchronization states for all active Meesho panels
+                Manage credentials and synchronization states for all active Flipkart panels
               </p>
             </div>
             <button
-              onClick={() => { fetchMeeshoAccounts(); fetchAllImportedSkus(); }}
-              className="p-2 text-slate-500 hover:text-blue-600 hover:bg-slate-50 border border-slate-200 rounded transition-all font-bold text-xs flex items-center gap-1.5"
+              onClick={() => { fetchFlipkartAccounts(); fetchAllImportedSkus(); }}
+              className="p-2 text-slate-500 hover:text-orange-600 hover:bg-slate-50 border border-slate-200 rounded transition-all font-bold text-xs flex items-center gap-1.5"
             >
               <RefreshCw size={14} />
               Refresh Statuses
@@ -216,56 +217,56 @@ export default function MeeshoSync() {
 
           {accounts.length === 0 ? (
             <div className="p-6 bg-slate-50 border border-dashed border-slate-200 rounded text-center">
-              <p className="text-xs text-slate-500 font-medium">No Meesho accounts configured yet.</p>
+              <p className="text-xs text-slate-500 font-medium">No Flipkart accounts configured yet.</p>
               <p className="text-[11px] text-slate-400 mt-1">
-                Please visit the <a href="/accounts" className="text-blue-600 underline font-bold">Accounts</a> page to add a Meesho account.
+                Please visit the <a href="/accounts" className="text-orange-605 underline font-bold">Accounts</a> page to add a Flipkart account.
               </p>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {accounts.map(acc => {
-                const hasCreds = acc.meesho_username && acc.meesho_password;
+                const hasCreds = acc.flipkart_username && acc.flipkart_password;
                 return (
                   <div key={acc.id} className="border border-slate-200 rounded-lg p-4 bg-slate-50/50 flex flex-col justify-between space-y-4 hover:shadow-md transition-all">
                     <div>
                       <div className="flex justify-between items-start">
                         <span className="font-extrabold text-sm text-slate-800">{acc.name}</span>
                         <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold ${
-                          acc.meesho_sync_status === 'syncing'
-                            ? 'bg-blue-50 text-blue-700 border border-blue-200 animate-pulse'
-                            : acc.meesho_sync_status === 'success'
+                          acc.flipkart_sync_status === 'syncing'
+                            ? 'bg-orange-50 text-orange-700 border border-orange-200 animate-pulse'
+                            : acc.flipkart_sync_status === 'success'
                               ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                              : acc.meesho_sync_status === 'failed'
+                              : acc.flipkart_sync_status === 'failed'
                                 ? 'bg-rose-50 text-rose-700 border border-rose-200'
                                 : 'bg-slate-100 text-slate-500 border border-slate-200'
                         }`}>
-                          {acc.meesho_sync_status === 'syncing' ? 'Syncing'
-                            : acc.meesho_sync_status === 'success' ? 'Synced'
-                              : acc.meesho_sync_status === 'failed' ? 'Sync Failed'
+                          {acc.flipkart_sync_status === 'syncing' ? 'Syncing'
+                            : acc.flipkart_sync_status === 'success' ? 'Synced'
+                              : acc.flipkart_sync_status === 'failed' ? 'Sync Failed'
                                 : 'Pending Credentials'}
                         </span>
                       </div>
                       <div className="text-[11px] text-slate-500 mt-3 space-y-1.5 font-medium">
                         <div className="flex justify-between">
                           <span>Supplier ID:</span>
-                          <span className="font-mono font-bold text-slate-700">{acc.meesho_supplier_id || 'N/A'}</span>
+                          <span className="font-mono font-bold text-slate-700">{acc.flipkart_supplier_id || 'N/A'}</span>
                         </div>
                         <div className="flex justify-between">
                           <span>Login ID:</span>
-                          <span className="font-mono font-bold text-slate-700">{acc.meesho_username || 'N/A'}</span>
+                          <span className="font-mono font-bold text-slate-700">{acc.flipkart_username || 'N/A'}</span>
                         </div>
                         <div className="flex justify-between">
                           <span>Last Sync:</span>
-                          <span className="text-slate-700">{acc.meesho_last_sync ? new Date(acc.meesho_last_sync).toLocaleString() : 'Never'}</span>
+                          <span className="text-slate-700">{acc.flipkart_last_sync ? new Date(acc.flipkart_last_sync).toLocaleString() : 'Never'}</span>
                         </div>
                       </div>
                     </div>
                     <button
                       onClick={() => handleManualSync(acc.id)}
-                      disabled={!hasCreds || acc.meesho_sync_status === 'syncing' || syncingAccountId === acc.id}
+                      disabled={!hasCreds || acc.flipkart_sync_status === 'syncing' || syncingAccountId === acc.id}
                       className="w-full flex items-center justify-center gap-1.5 py-1.5 bg-slate-900 hover:bg-slate-800 disabled:bg-slate-200 text-white rounded text-xs font-bold transition-all shadow-sm cursor-pointer"
                     >
-                      <RefreshCw size={12} className={acc.meesho_sync_status === 'syncing' ? 'animate-spin' : ''} />
+                      <RefreshCw size={12} className={acc.flipkart_sync_status === 'syncing' ? 'animate-spin' : ''} />
                       Sync Account Listings
                     </button>
                   </div>
@@ -284,14 +285,14 @@ export default function MeeshoSync() {
             {/* Header */}
             <div className="px-6 pt-6 pb-4 border-b border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-3">
               <div>
-                <h3 className="text-md font-bold text-slate-800">Synced Meesho Catalog Listings</h3>
+                <h3 className="text-md font-bold text-slate-800">Synced Flipkart Catalog Listings</h3>
                 <p className="text-xs text-slate-400 font-medium mt-0.5">
                   Click rows to add SKUs to the bulk queue · {filteredSkus.length} listings shown
                 </p>
               </div>
               {someVisibleSelected && (
                 <div className="flex items-center gap-2">
-                  <span className="text-xs font-bold text-blue-700 bg-blue-50 px-3 py-1 rounded-full border border-blue-200">
+                  <span className="text-xs font-bold text-orange-750 bg-orange-50 px-3 py-1 rounded-full border border-orange-200">
                     {bulkQueue.length} selected
                   </span>
                   <button
@@ -328,7 +329,7 @@ export default function MeeshoSync() {
                 >
                   <option value="">All Accounts</option>
                   {accounts.map(acc => (
-                    <option key={acc.id} value={acc.id}>{acc.name} ({acc.meesho_supplier_id || 'N/A'})</option>
+                    <option key={acc.id} value={acc.id}>{acc.name} ({acc.flipkart_supplier_id || 'N/A'})</option>
                   ))}
                 </select>
               </div>
@@ -356,13 +357,13 @@ export default function MeeshoSync() {
                       <th className="py-3 px-4 w-10">
                         <button
                           onClick={handleSelectAllVisible}
-                          className="flex items-center justify-center text-slate-400 hover:text-blue-600 transition-colors"
+                          className="flex items-center justify-center text-slate-400 hover:text-orange-600 transition-colors"
                           title={allVisibleSelected ? 'Deselect all visible' : 'Select all visible'}
                         >
                           {allVisibleSelected
-                            ? <CheckSquare size={15} className="text-blue-600" />
+                            ? <CheckSquare size={15} className="text-orange-600" />
                             : someVisibleSelected
-                              ? <CheckSquare size={15} className="text-blue-400" />
+                              ? <CheckSquare size={15} className="text-orange-400" />
                               : <Square size={15} />}
                         </button>
                       </th>
@@ -384,7 +385,7 @@ export default function MeeshoSync() {
                           onClick={() => toggleSkuInQueue(item)}
                           className={`border-b border-slate-100 transition-all cursor-pointer select-none ${
                             inQueue
-                              ? 'bg-blue-50/60 hover:bg-blue-50'
+                              ? 'bg-orange-50/60 hover:bg-orange-50'
                               : 'hover:bg-slate-50/60'
                           }`}
                         >
@@ -392,7 +393,7 @@ export default function MeeshoSync() {
                           <td className="py-3 px-4">
                             <div className="flex items-center justify-center">
                               {inQueue
-                                ? <CheckSquare size={15} className="text-blue-600" />
+                                ? <CheckSquare size={15} className="text-orange-600" />
                                 : <Square size={15} className="text-slate-300" />}
                             </div>
                           </td>
@@ -401,7 +402,7 @@ export default function MeeshoSync() {
                           <td className="py-3 px-4">
                             <div className="font-bold text-slate-800 text-[11px]">{item.account?.name}</div>
                             <div className="text-[10px] text-slate-400 font-semibold mt-0.5">
-                              {item.account?.meesho_supplier_id || 'N/A'}
+                              {item.account?.flipkart_supplier_id || 'N/A'}
                             </div>
                           </td>
 
@@ -465,7 +466,7 @@ export default function MeeshoSync() {
                                 </span>
                               )}
                               {item.product_id ? (
-                                <span className="px-1.5 py-0.5 rounded-full text-[8px] font-bold bg-blue-50 border border-blue-200 text-blue-700 max-w-[90px] truncate" title={item.product?.name}>
+                                <span className="px-1.5 py-0.5 rounded-full text-[8px] font-bold bg-orange-50 border border-orange-200 text-orange-700 max-w-[90px] truncate" title={item.product?.name}>
                                   ✓ {item.product?.name}
                                 </span>
                               ) : (
@@ -483,7 +484,7 @@ export default function MeeshoSync() {
                               className={`flex items-center gap-1 text-[10px] font-extrabold ml-auto px-2.5 py-1 rounded cursor-pointer transition-all border ${
                                 inQueue
                                   ? 'text-rose-600 border-rose-200 bg-rose-50 hover:bg-rose-100'
-                                  : 'text-blue-600 border-blue-100 hover:bg-blue-50'
+                                  : 'text-orange-600 border-orange-100 hover:bg-orange-50'
                               }`}
                             >
                               {inQueue ? (
@@ -513,7 +514,7 @@ export default function MeeshoSync() {
             {/* Panel Header — fixed, never scrolls */}
             <div className="px-5 py-4 border-b border-slate-100 bg-gradient-to-br from-slate-900 to-slate-700 flex-shrink-0">
               <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                <Shuffle size={16} className="text-blue-400" />
+                <Shuffle size={16} className="text-orange-400" />
                 Master SKU Linker
               </h3>
               <p className="text-[11px] text-slate-400 mt-1">
@@ -521,7 +522,7 @@ export default function MeeshoSync() {
               </p>
             </div>
 
-            {/* Scrollable body — everything below the header scrolls */}
+            {/* Scrollable body ── */}
             <div className="flex-1 overflow-y-auto">
 
             {bulkQueue.length === 0 ? (
@@ -537,9 +538,9 @@ export default function MeeshoSync() {
                   </p>
                 </div>
                 <div className="flex flex-col gap-2 text-[10px] text-slate-400 bg-slate-50 border border-slate-100 rounded p-3 text-left">
-                  <span className="flex items-center gap-1.5"><CheckSquare size={11} className="text-blue-500" /> Click multiple rows to select</span>
-                  <span className="flex items-center gap-1.5"><Shuffle size={11} className="text-blue-500" /> Choose one Master Product</span>
-                  <span className="flex items-center gap-1.5"><Zap size={11} className="text-blue-500" /> Link all in a single click</span>
+                  <span className="flex items-center gap-1.5"><CheckSquare size={11} className="text-orange-500" /> Click multiple rows to select</span>
+                  <span className="flex items-center gap-1.5"><Shuffle size={11} className="text-orange-500" /> Choose one Master Product</span>
+                  <span className="flex items-center gap-1.5"><Zap size={11} className="text-orange-500" /> Link all in a single click</span>
                 </div>
               </div>
             ) : (
@@ -563,24 +564,24 @@ export default function MeeshoSync() {
                     {bulkQueue.map(item => (
                       <div
                         key={item.id}
-                        className="flex items-center gap-2 bg-blue-50 border border-blue-100 rounded-lg px-3 py-2 group"
+                        className="flex items-center gap-2 bg-orange-50 border border-orange-100 rounded-lg px-3 py-2 group"
                       >
                         {/* Thumbnail */}
                         {item.image_url ? (
                           <img
                             src={item.image_url}
                             alt="Product"
-                            className="w-8 h-8 object-cover rounded border border-blue-200 flex-shrink-0"
+                            className="w-8 h-8 object-cover rounded border border-orange-200 flex-shrink-0"
                           />
                         ) : (
-                          <div className="w-8 h-8 bg-blue-100 rounded flex-shrink-0 flex items-center justify-center">
-                            <Package size={12} className="text-blue-400" />
+                          <div className="w-8 h-8 bg-orange-100 rounded flex-shrink-0 flex items-center justify-center">
+                            <Package size={12} className="text-orange-400" />
                           </div>
                         )}
 
                         {/* Info */}
                         <div className="flex-1 min-w-0">
-                          <div className="font-mono font-bold text-[10px] text-blue-700 truncate">{item.marketplace_sku}</div>
+                          <div className="font-mono font-bold text-[10px] text-orange-700 truncate">{item.marketplace_sku}</div>
                           <div className="text-[9px] text-slate-500 truncate">{item.account?.name}</div>
                         </div>
 
@@ -612,7 +613,7 @@ export default function MeeshoSync() {
                       <input
                         type="text"
                         value={productSearch}
-                        onChange={e => setProductSearch(e.target.value)}
+                        onChange={e => productSearch && setProductSearch(e.target.value)}
                         placeholder="Filter products..."
                         className="w-full pl-7 pr-3 py-1.5 border border-slate-200 rounded text-xs focus:outline-none text-slate-700 font-medium"
                       />
@@ -622,7 +623,7 @@ export default function MeeshoSync() {
                       value={bulkProductId}
                       onChange={e => setBulkProductId(e.target.value)}
                       size={Math.min(filteredProducts.length + 1, 6)}
-                      className="w-full px-3 py-2 border border-slate-200 rounded text-xs bg-white font-semibold focus:outline-none focus:border-blue-500 text-slate-700"
+                      className="w-full px-3 py-2 border border-slate-200 rounded text-xs bg-white font-semibold focus:outline-none focus:border-orange-500 text-slate-700"
                     >
                       <option value="">-- Choose Master Product --</option>
                       {filteredProducts.map(p => (
@@ -681,7 +682,7 @@ export default function MeeshoSync() {
                   <button
                     onClick={handleBulkSave}
                     disabled={isBulkSaving || !bulkProductId || bulkQueue.length === 0}
-                    className="w-full flex items-center justify-center gap-2 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-200 disabled:text-slate-400 text-white rounded-lg text-xs font-bold transition-all shadow-sm cursor-pointer"
+                    className="w-full flex items-center justify-center gap-2 py-3 bg-orange-600 hover:bg-orange-700 disabled:bg-slate-200 disabled:text-slate-400 text-white rounded-lg text-xs font-bold transition-all shadow-sm cursor-pointer"
                   >
                     {isBulkSaving ? (
                       <><RefreshCw size={14} className="animate-spin" />Linking {bulkQueue.length} SKUs...</>

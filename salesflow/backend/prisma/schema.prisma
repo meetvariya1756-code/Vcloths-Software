@@ -55,6 +55,12 @@ model Account {
   meesho_sync_status String?        // pending, syncing, success, failed
   meesho_sync_error  String?
   meesho_last_sync   DateTime?
+  flipkart_supplier_id String?
+  flipkart_username    String?
+  flipkart_password    String?
+  flipkart_sync_status String?        // pending, syncing, success, failed
+  flipkart_sync_error  String?
+  flipkart_last_sync   DateTime?
   sales_records      SalesRecord[]
   pdf_imports        PdfImport[]
   account_prices     AccountPrice[]

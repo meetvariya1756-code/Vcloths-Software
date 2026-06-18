@@ -29,6 +29,7 @@ export default function Sidebar() {
     { to: '/products', name: 'Products', icon: <Package size={18} /> },
     { to: '/sku-mappings', name: 'SKU Mappings', icon: <Shuffle size={18} /> },
     { to: '/meesho-sync', name: 'Meesho Sync', icon: <RefreshCw size={18} /> },
+    { to: '/flipkart-sync', name: 'Flipkart Sync', icon: <RefreshCw size={18} /> },
     { to: '/accounts', name: 'Accounts', icon: <Users size={18} /> },
     { to: '/daily-report', name: 'Daily Report', icon: <CalendarDays size={18} /> },
     { to: '/monthly-report', name: 'Monthly Report', icon: <BarChart3 size={18} /> },

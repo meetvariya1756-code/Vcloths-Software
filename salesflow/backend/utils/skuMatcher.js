@@ -44,7 +44,7 @@ function levenshteinDistance(a, b) {
   return tmp[alen][blen];
 }
 
-async function findBestSkuMapping(prisma, rawSku) {
+async function findBestSkuMapping(prisma, rawSku, platform = 'meesho') {
   if (!rawSku) return null;
   const sku = rawSku.trim();
 
@@ -122,7 +122,7 @@ async function findBestSkuMapping(prisma, rawSku) {
       data: {
         marketplace_sku: sku,
         product_id: product.id,
-        platform: 'meesho',
+        platform: platform,
         color_variant: 'Assorted',
         size_variant: 'Free'
       },
@@ -169,7 +169,7 @@ async function findBestSkuMapping(prisma, rawSku) {
       data: {
         marketplace_sku: sku,
         product_id: product.id,
-        platform: 'meesho',
+        platform: platform,
         color_variant: 'Assorted',
         size_variant: 'Free'
       },
@@ -228,7 +228,7 @@ async function findBestSkuMapping(prisma, rawSku) {
         data: {
           marketplace_sku: sku,
           product_id: product.id,
-          platform: 'meesho',
+          platform: platform,
           color_variant: 'Assorted',
           size_variant: 'Free'
         },

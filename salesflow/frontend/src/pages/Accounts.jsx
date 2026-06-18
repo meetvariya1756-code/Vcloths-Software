@@ -19,6 +19,9 @@ export default function Accounts() {
   const [meeshoSupplierId, setMeeshoSupplierId] = useState('');
   const [meeshoUsername, setMeeshoUsername] = useState('');
   const [meeshoPassword, setMeeshoPassword] = useState('');
+  const [flipkartSupplierId, setFlipkartSupplierId] = useState('');
+  const [flipkartUsername, setFlipkartUsername] = useState('');
+  const [flipkartPassword, setFlipkartPassword] = useState('');
 
   // Edit Account Modal / Form
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -30,6 +33,9 @@ export default function Accounts() {
   const [editMeeshoSupplierId, setEditMeeshoSupplierId] = useState('');
   const [editMeeshoUsername, setEditMeeshoUsername] = useState('');
   const [editMeeshoPassword, setEditMeeshoPassword] = useState('');
+  const [editFlipkartSupplierId, setEditFlipkartSupplierId] = useState('');
+  const [editFlipkartUsername, setEditFlipkartUsername] = useState('');
+  const [editFlipkartPassword, setEditFlipkartPassword] = useState('');
 
   // Editing Overrides
   const [editingProductId, setEditingProductId] = useState(null);
@@ -86,6 +92,10 @@ export default function Accounts() {
         payload.meesho_supplier_id = meeshoSupplierId.trim() || null;
         payload.meesho_username = meeshoUsername.trim() || null;
         payload.meesho_password = meeshoPassword.trim() || null;
+      } else if (platform === 'flipkart') {
+        payload.flipkart_supplier_id = flipkartSupplierId.trim() || null;
+        payload.flipkart_username = flipkartUsername.trim() || null;
+        payload.flipkart_password = flipkartPassword.trim() || null;
       }
 
       await api.post('/accounts', payload);
@@ -96,6 +106,9 @@ export default function Accounts() {
       setMeeshoSupplierId('');
       setMeeshoUsername('');
       setMeeshoPassword('');
+      setFlipkartSupplierId('');
+      setFlipkartUsername('');
+      setFlipkartPassword('');
       fetchAccounts();
     } catch (err) {
       alert(err.response?.data?.error || 'Failed to create account');
@@ -111,6 +124,9 @@ export default function Accounts() {
     setEditMeeshoSupplierId(acc.meesho_supplier_id || '');
     setEditMeeshoUsername(acc.meesho_username || '');
     setEditMeeshoPassword(acc.meesho_password || '');
+    setEditFlipkartSupplierId(acc.flipkart_supplier_id || '');
+    setEditFlipkartUsername(acc.flipkart_username || '');
+    setEditFlipkartPassword(acc.flipkart_password || '');
     setIsEditModalOpen(true);
   };
 
@@ -133,6 +149,10 @@ export default function Accounts() {
         payload.meesho_supplier_id = editMeeshoSupplierId.trim() || null;
         payload.meesho_username = editMeeshoUsername.trim() || null;
         payload.meesho_password = editMeeshoPassword.trim() || null;
+      } else if (editPlatform === 'flipkart') {
+        payload.flipkart_supplier_id = editFlipkartSupplierId.trim() || null;
+        payload.flipkart_username = editFlipkartUsername.trim() || null;
+        payload.flipkart_password = editFlipkartPassword.trim() || null;
       }
 
       await api.put(`/accounts/${editingAccount.id}`, payload);
@@ -276,6 +296,27 @@ export default function Accounts() {
                           )}
                         </div>
                       )}
+                      {acc.platform === 'flipkart' && (
+                        <div>
+                          {acc.flipkart_sync_status === 'syncing' ? (
+                            <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-orange-50 text-orange-700 border border-orange-200 animate-pulse">
+                              Syncing...
+                            </span>
+                          ) : acc.flipkart_sync_status === 'success' ? (
+                            <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200" title={acc.flipkart_last_sync ? `Last Synced: ${new Date(acc.flipkart_last_sync).toLocaleString()}` : ''}>
+                              Synced
+                            </span>
+                          ) : acc.flipkart_sync_status === 'failed' ? (
+                            <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-rose-50 text-rose-700 border border-rose-200" title={acc.flipkart_sync_error || ''}>
+                              Sync Failed
+                            </span>
+                          ) : (
+                            <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-slate-100 text-slate-500 border border-slate-200">
+                              No Sync
+                            </span>
+                          )}
+                        </div>
+                      )}
                     </td>
                     <td className="py-4 px-6 text-slate-450 italic font-medium">
                       {acc.notes || <span className="text-slate-300 font-normal">No notes written</span>}
@@ -341,6 +382,25 @@ export default function Accounts() {
                                       {acc.meesho_sync_status === 'syncing' ? 'Syncing...' : 'Sync Now'}
                                     </button>
                                   )}
+                                  {acc.platform === 'flipkart' && (
+                                    <button
+                                      onClick={async (e) => {
+                                        e.stopPropagation();
+                                        try {
+                                          await api.post(`/accounts/${acc.id}/sync`);
+                                          alert('Sync triggered in background.');
+                                          // Refresh expand view
+                                          handleExpandAccount(acc.id);
+                                        } catch (err) {
+                                          alert('Failed to trigger sync: ' + (err.response?.data?.error || err.message));
+                                        }
+                                      }}
+                                      disabled={acc.flipkart_sync_status === 'syncing'}
+                                      className="px-2.5 py-1 bg-slate-900 hover:bg-slate-800 disabled:bg-slate-200 text-white rounded text-[10px] font-bold transition-all shadow-sm"
+                                    >
+                                      {acc.flipkart_sync_status === 'syncing' ? 'Syncing...' : 'Sync Now'}
+                                    </button>
+                                  )}
                                 </div>
 
                                 {acc.platform === 'meesho' && (
@@ -362,6 +422,30 @@ export default function Accounts() {
                                       <div className="text-[10px] text-red-600 bg-red-50 border border-red-100 p-2 rounded mt-1.5 leading-snug">
                                         <span className="font-extrabold uppercase text-[8px] tracking-wider block text-red-500 mb-0.5">Sync Error Log</span>
                                         {acc.meesho_sync_error}
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
+
+                                {acc.platform === 'flipkart' && (
+                                  <div className="bg-slate-50 border border-slate-200 rounded p-3 text-xs space-y-1.5 font-medium">
+                                    <div className="text-[9px] uppercase font-extrabold text-slate-400 tracking-wider">Flipkart Connection Details</div>
+                                    <div className="flex justify-between">
+                                      <span className="text-slate-500">Supplier ID:</span>
+                                      <span className="font-mono font-bold text-slate-700">{acc.flipkart_supplier_id || <span className="text-slate-350 italic font-normal">Not configured</span>}</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                      <span className="text-slate-500">Login ID / Username:</span>
+                                      <span className="font-mono font-bold text-slate-700">{acc.flipkart_username || <span className="text-slate-350 italic font-normal">Not configured</span>}</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                      <span className="text-slate-500">Last Synced:</span>
+                                      <span className="text-slate-700">{acc.flipkart_last_sync ? new Date(acc.flipkart_last_sync).toLocaleString() : <span className="text-slate-350 italic font-normal">Never synced</span>}</span>
+                                    </div>
+                                    {acc.flipkart_sync_error && (
+                                      <div className="text-[10px] text-red-600 bg-red-50 border border-red-100 p-2 rounded mt-1.5 leading-snug">
+                                        <span className="font-extrabold uppercase text-[8px] tracking-wider block text-red-500 mb-0.5">Sync Error Log</span>
+                                        {acc.flipkart_sync_error}
                                       </div>
                                     )}
                                   </div>
@@ -595,6 +679,46 @@ export default function Accounts() {
                 </div>
               )}
 
+              {platform === 'flipkart' && (
+                <div className="p-4 bg-slate-50 border border-slate-200 rounded-md space-y-4">
+                  <span className="text-[10px] uppercase font-extrabold text-orange-600 tracking-wider block">Flipkart Credentials</span>
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1.5">Flipkart Supplier ID</label>
+                    <input
+                      type="text"
+                      value={flipkartSupplierId}
+                      onChange={(e) => setFlipkartSupplierId(e.target.value)}
+                      className="w-full px-3 py-2 border border-slate-200 rounded text-sm bg-white focus:outline-none focus:border-blue-500 font-semibold"
+                      placeholder="e.g. 14"
+                      required
+                    />
+                    <p className="text-[10px] text-slate-400 mt-1 font-medium">Matches supplier catalog identifier on Flipkart.</p>
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1.5">Login ID / Username</label>
+                    <input
+                      type="text"
+                      value={flipkartUsername}
+                      onChange={(e) => setFlipkartUsername(e.target.value)}
+                      className="w-full px-3 py-2 border border-slate-200 rounded text-sm bg-white focus:outline-none focus:border-blue-500 font-semibold"
+                      placeholder="e.g. admin@vcloths.com"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1.5">Password</label>
+                    <input
+                      type="password"
+                      value={flipkartPassword}
+                      onChange={(e) => setFlipkartPassword(e.target.value)}
+                      className="w-full px-3 py-2 border border-slate-200 rounded text-sm bg-white focus:outline-none focus:border-blue-500"
+                      placeholder="Enter password"
+                      required
+                    />
+                  </div>
+                </div>
+              )}
+
               <div>
                 <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Notes / Description</label>
                 <textarea
@@ -692,6 +816,46 @@ export default function Accounts() {
                       type="password"
                       value={editMeeshoPassword}
                       onChange={(e) => setEditMeeshoPassword(e.target.value)}
+                      className="w-full px-3 py-2 border border-slate-200 rounded text-sm bg-white focus:outline-none focus:border-blue-500"
+                      placeholder="Enter password"
+                      required
+                    />
+                  </div>
+                </div>
+              )}
+
+              {editPlatform === 'flipkart' && (
+                <div className="p-4 bg-slate-50 border border-slate-200 rounded-md space-y-4">
+                  <span className="text-[10px] uppercase font-extrabold text-orange-600 tracking-wider block">Flipkart Credentials</span>
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1.5">Flipkart Supplier ID</label>
+                    <input
+                      type="text"
+                      value={editFlipkartSupplierId}
+                      onChange={(e) => setEditFlipkartSupplierId(e.target.value)}
+                      className="w-full px-3 py-2 border border-slate-200 rounded text-sm bg-white focus:outline-none focus:border-blue-500 font-semibold"
+                      placeholder="e.g. 14"
+                      required
+                    />
+                    <p className="text-[10px] text-slate-400 mt-1 font-medium">Matches supplier catalog identifier on Flipkart.</p>
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1.5">Login ID / Username</label>
+                    <input
+                      type="text"
+                      value={editFlipkartUsername}
+                      onChange={(e) => setEditFlipkartUsername(e.target.value)}
+                      className="w-full px-3 py-2 border border-slate-200 rounded text-sm bg-white focus:outline-none focus:border-blue-500 font-semibold"
+                      placeholder="e.g. admin@vcloths.com"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1.5">Password</label>
+                    <input
+                      type="password"
+                      value={editFlipkartPassword}
+                      onChange={(e) => setEditFlipkartPassword(e.target.value)}
                       className="w-full px-3 py-2 border border-slate-200 rounded text-sm bg-white focus:outline-none focus:border-blue-500"
                       placeholder="Enter password"
                       required
