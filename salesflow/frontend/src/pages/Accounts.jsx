@@ -606,140 +606,148 @@ export default function Accounts() {
       {/* Add Account Modal */}
       {isAddModalOpen && (
         <div className="fixed inset-0 z-50 bg-slate-900/60 flex items-center justify-center p-4">
-          <div className="bg-white border border-slate-200 rounded-lg max-w-md w-full p-6 space-y-6 shadow-xl">
-            <div>
-              <h3 className="text-md font-bold text-slate-800">Add Account</h3>
-              <p className="text-xs text-slate-400 font-medium">Add a sales account to start parsing platform PDFs and reports</p>
+          <div className="bg-white border border-slate-200 rounded-lg max-w-md w-full flex flex-col max-h-[90vh] shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+            <div className="p-5 border-b border-slate-100 flex-shrink-0">
+              <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider">Add Account</h3>
+              <p className="text-[11px] text-slate-400 font-semibold mt-1">Add a sales account to start parsing platform PDFs and reports</p>
             </div>
 
-             <form onSubmit={handleAddAccountSubmit} className="space-y-4">
-              <div>
-                <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Account Name</label>
-                <input
-                  type="text"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-200 rounded text-sm focus:outline-none focus:border-blue-500"
-                  placeholder="e.g. AHANA, BALAPARI"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Sales Channel Platform</label>
-                <select
-                  value={platform}
-                  onChange={(e) => setPlatform(e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-200 rounded text-sm bg-white"
-                  required
-                >
-                  <option value="meesho">Meesho (Blue)</option>
-                  <option value="flipkart">Flipkart (Orange)</option>
-                  <option value="amazon">Amazon (Green)</option>
-                </select>
-              </div>
-
-              {platform === 'meesho' && (
-                <div className="p-4 bg-slate-50 border border-slate-200 rounded-md space-y-4">
-                  <span className="text-[10px] uppercase font-extrabold text-blue-600 tracking-wider block">Meesho Credentials</span>
-                  <div>
-                    <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1.5">Meesho Supplier ID</label>
-                    <input
-                      type="text"
-                      value={meeshoSupplierId}
-                      onChange={(e) => setMeeshoSupplierId(e.target.value)}
-                      className="w-full px-3 py-2 border border-slate-200 rounded text-sm bg-white focus:outline-none focus:border-blue-500 font-semibold"
-                      placeholder="e.g. 14"
-                      required
-                    />
-                    <p className="text-[10px] text-slate-400 mt-1 font-medium">Distinct from Login ID; matches supplier catalog identifier.</p>
-                  </div>
-                  <div>
-                    <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1.5">Login ID / Username</label>
-                    <input
-                      type="text"
-                      value={meeshoUsername}
-                      onChange={(e) => setMeeshoUsername(e.target.value)}
-                      className="w-full px-3 py-2 border border-slate-200 rounded text-sm bg-white focus:outline-none focus:border-blue-500 font-semibold"
-                      placeholder="e.g. admin"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1.5">Password</label>
-                    <input
-                      type="password"
-                      value={meeshoPassword}
-                      onChange={(e) => setMeeshoPassword(e.target.value)}
-                      className="w-full px-3 py-2 border border-slate-200 rounded text-sm bg-white focus:outline-none focus:border-blue-500"
-                      placeholder="Enter password"
-                      required
-                    />
-                  </div>
+            <form onSubmit={handleAddAccountSubmit} className="flex flex-col flex-1 min-h-0">
+              <div className="p-5 overflow-y-auto space-y-4 flex-1">
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1.5">Account Name</label>
+                  <input
+                    type="text"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    className="w-full px-3 py-1.5 border border-slate-200 rounded text-sm focus:outline-none focus:border-blue-500 font-semibold"
+                    placeholder="e.g. AHANA, BALAPARI"
+                    required
+                  />
                 </div>
-              )}
 
-              {platform === 'flipkart' && (
-                <div className="p-4 bg-slate-50 border border-slate-200 rounded-md space-y-4">
-                  <span className="text-[10px] uppercase font-extrabold text-orange-600 tracking-wider block">Flipkart Credentials</span>
-                  <div>
-                    <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1.5">Flipkart Supplier ID</label>
-                    <input
-                      type="text"
-                      value={flipkartSupplierId}
-                      onChange={(e) => setFlipkartSupplierId(e.target.value)}
-                      className="w-full px-3 py-2 border border-slate-200 rounded text-sm bg-white focus:outline-none focus:border-blue-500 font-semibold"
-                      placeholder="e.g. 14"
-                      required
-                    />
-                    <p className="text-[10px] text-slate-400 mt-1 font-medium">Matches supplier catalog identifier on Flipkart.</p>
-                  </div>
-                  <div>
-                    <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1.5">Login ID / Username</label>
-                    <input
-                      type="text"
-                      value={flipkartUsername}
-                      onChange={(e) => setFlipkartUsername(e.target.value)}
-                      className="w-full px-3 py-2 border border-slate-200 rounded text-sm bg-white focus:outline-none focus:border-blue-500 font-semibold"
-                      placeholder="e.g. admin@vcloths.com"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1.5">Password</label>
-                    <input
-                      type="password"
-                      value={flipkartPassword}
-                      onChange={(e) => setFlipkartPassword(e.target.value)}
-                      className="w-full px-3 py-2 border border-slate-200 rounded text-sm bg-white focus:outline-none focus:border-blue-500"
-                      placeholder="Enter password"
-                      required
-                    />
-                  </div>
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1.5">Sales Channel Platform</label>
+                  <select
+                    value={platform}
+                    onChange={(e) => setPlatform(e.target.value)}
+                    className="w-full px-3 py-1.5 border border-slate-200 rounded text-sm bg-white font-semibold"
+                    required
+                  >
+                    <option value="meesho">Meesho (Blue)</option>
+                    <option value="flipkart">Flipkart (Orange)</option>
+                  </select>
                 </div>
-              )}
 
-              <div>
-                <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Notes / Description</label>
-                <textarea
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-200 rounded text-sm focus:outline-none focus:border-blue-500"
-                  placeholder="e.g. Primary Meesho store"
-                ></textarea>
+                {platform === 'meesho' && (
+                  <div className="p-4 bg-slate-50 border border-slate-200 rounded-md space-y-3">
+                    <span className="text-[10px] uppercase font-extrabold text-blue-600 tracking-wider block">Meesho Credentials</span>
+                    
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Supplier ID</label>
+                        <input
+                          type="text"
+                          value={meeshoSupplierId}
+                          onChange={(e) => setMeeshoSupplierId(e.target.value)}
+                          className="w-full px-3 py-1.5 border border-slate-200 rounded text-xs bg-white focus:outline-none focus:border-blue-500 font-medium"
+                          placeholder="e.g. 774827"
+                          required
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Username / Phone</label>
+                        <input
+                          type="text"
+                          value={meeshoUsername}
+                          onChange={(e) => setMeeshoUsername(e.target.value)}
+                          className="w-full px-3 py-1.5 border border-slate-200 rounded text-xs bg-white focus:outline-none focus:border-blue-500 font-medium"
+                          placeholder="e.g. 9876543210"
+                          required
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Password</label>
+                      <input
+                        type="password"
+                        value={meeshoPassword}
+                        onChange={(e) => setMeeshoPassword(e.target.value)}
+                        className="w-full px-3 py-1.5 border border-slate-200 rounded text-xs bg-white focus:outline-none focus:border-blue-500 font-medium"
+                        placeholder="Enter password"
+                        required
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {platform === 'flipkart' && (
+                  <div className="p-4 bg-slate-50 border border-slate-200 rounded-md space-y-3">
+                    <span className="text-[10px] uppercase font-extrabold text-orange-600 tracking-wider block">Flipkart Credentials</span>
+                    
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Supplier ID</label>
+                        <input
+                          type="text"
+                          value={flipkartSupplierId}
+                          onChange={(e) => setFlipkartSupplierId(e.target.value)}
+                          className="w-full px-3 py-1.5 border border-slate-200 rounded text-xs bg-white focus:outline-none focus:border-blue-500 font-medium"
+                          placeholder="e.g. FK-BALAPARI"
+                          required
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Username / Email</label>
+                        <input
+                          type="text"
+                          value={flipkartUsername}
+                          onChange={(e) => setFlipkartUsername(e.target.value)}
+                          className="w-full px-3 py-1.5 border border-slate-200 rounded text-xs bg-white focus:outline-none focus:border-blue-500 font-medium"
+                          placeholder="e.g. admin@vcloths.com"
+                          required
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Password</label>
+                      <input
+                        type="password"
+                        value={flipkartPassword}
+                        onChange={(e) => setFlipkartPassword(e.target.value)}
+                        className="w-full px-3 py-1.5 border border-slate-200 rounded text-xs bg-white focus:outline-none focus:border-blue-500 font-medium"
+                        placeholder="Enter password"
+                        required
+                      />
+                    </div>
+                  </div>
+                )}
+
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1.5">Notes / Description</label>
+                  <textarea
+                    value={notes}
+                    onChange={(e) => setNotes(e.target.value)}
+                    rows={2}
+                    className="w-full px-3 py-1.5 border border-slate-200 rounded text-sm focus:outline-none focus:border-blue-500 font-medium resize-none"
+                    placeholder="e.g. Primary Meesho store"
+                  ></textarea>
+                </div>
               </div>
 
-              <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
+              <div className="p-4 bg-slate-50 border-t border-slate-100 flex justify-end gap-3 flex-shrink-0">
                 <button
                   type="button"
                   onClick={() => setIsAddModalOpen(false)}
-                  className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded"
+                  className="px-4 py-2 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 text-xs font-bold rounded transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded"
+                  className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded transition-colors"
                 >
                   Register Account
                 </button>
@@ -752,149 +760,157 @@ export default function Accounts() {
       {/* Edit Account Modal */}
       {isEditModalOpen && (
         <div className="fixed inset-0 z-50 bg-slate-900/60 flex items-center justify-center p-4">
-          <div className="bg-white border border-slate-200 rounded-lg max-w-md w-full p-6 space-y-6 shadow-xl">
-            <div>
-              <h3 className="text-md font-bold text-slate-800">Edit Account Details</h3>
-              <p className="text-xs text-slate-400 font-medium">Modify credentials or details for this sales channel</p>
+          <div className="bg-white border border-slate-200 rounded-lg max-w-md w-full flex flex-col max-h-[90vh] shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+            <div className="p-5 border-b border-slate-100 flex-shrink-0">
+              <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider">Edit Account Details</h3>
+              <p className="text-[11px] text-slate-400 font-semibold mt-1">Modify credentials or details for this sales channel</p>
             </div>
 
-            <form onSubmit={handleEditAccountSubmit} className="space-y-4">
-              <div>
-                <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Account Name</label>
-                <input
-                  type="text"
-                  value={editName}
-                  onChange={(e) => setEditName(e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-200 rounded text-sm focus:outline-none focus:border-blue-500 font-semibold"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Sales Channel Platform</label>
-                <select
-                  value={editPlatform}
-                  onChange={(e) => setEditPlatform(e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-200 rounded text-sm bg-white"
-                  required
-                >
-                  <option value="meesho">Meesho (Blue)</option>
-                  <option value="flipkart">Flipkart (Orange)</option>
-                  <option value="amazon">Amazon (Green)</option>
-                </select>
-              </div>
-
-              {editPlatform === 'meesho' && (
-                <div className="p-4 bg-slate-50 border border-slate-200 rounded-md space-y-4">
-                  <span className="text-[10px] uppercase font-extrabold text-blue-600 tracking-wider block">Meesho Credentials</span>
-                  <div>
-                    <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1.5">Meesho Supplier ID</label>
-                    <input
-                      type="text"
-                      value={editMeeshoSupplierId}
-                      onChange={(e) => setEditMeeshoSupplierId(e.target.value)}
-                      className="w-full px-3 py-2 border border-slate-200 rounded text-sm bg-white focus:outline-none focus:border-blue-500 font-semibold"
-                      placeholder="e.g. 14"
-                      required
-                    />
-                    <p className="text-[10px] text-slate-400 mt-1 font-medium">Distinct from Login ID; matches supplier catalog identifier.</p>
-                  </div>
-                  <div>
-                    <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1.5">Login ID / Username</label>
-                    <input
-                      type="text"
-                      value={editMeeshoUsername}
-                      onChange={(e) => setEditMeeshoUsername(e.target.value)}
-                      className="w-full px-3 py-2 border border-slate-200 rounded text-sm bg-white focus:outline-none focus:border-blue-500 font-semibold"
-                      placeholder="e.g. admin"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1.5">Password</label>
-                    <input
-                      type="password"
-                      value={editMeeshoPassword}
-                      onChange={(e) => setEditMeeshoPassword(e.target.value)}
-                      className="w-full px-3 py-2 border border-slate-200 rounded text-sm bg-white focus:outline-none focus:border-blue-500"
-                      placeholder="Enter password"
-                      required
-                    />
-                  </div>
+            <form onSubmit={handleEditAccountSubmit} className="flex flex-col flex-1 min-h-0">
+              <div className="p-5 overflow-y-auto space-y-4 flex-1">
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1.5">Account Name</label>
+                  <input
+                    type="text"
+                    value={editName}
+                    onChange={(e) => setEditName(e.target.value)}
+                    className="w-full px-3 py-1.5 border border-slate-200 rounded text-sm focus:outline-none focus:border-blue-500 font-semibold"
+                    required
+                  />
                 </div>
-              )}
 
-              {editPlatform === 'flipkart' && (
-                <div className="p-4 bg-slate-50 border border-slate-200 rounded-md space-y-4">
-                  <span className="text-[10px] uppercase font-extrabold text-orange-600 tracking-wider block">Flipkart Credentials</span>
-                  <div>
-                    <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1.5">Flipkart Supplier ID</label>
-                    <input
-                      type="text"
-                      value={editFlipkartSupplierId}
-                      onChange={(e) => setEditFlipkartSupplierId(e.target.value)}
-                      className="w-full px-3 py-2 border border-slate-200 rounded text-sm bg-white focus:outline-none focus:border-blue-500 font-semibold"
-                      placeholder="e.g. 14"
-                      required
-                    />
-                    <p className="text-[10px] text-slate-400 mt-1 font-medium">Matches supplier catalog identifier on Flipkart.</p>
-                  </div>
-                  <div>
-                    <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1.5">Login ID / Username</label>
-                    <input
-                      type="text"
-                      value={editFlipkartUsername}
-                      onChange={(e) => setEditFlipkartUsername(e.target.value)}
-                      className="w-full px-3 py-2 border border-slate-200 rounded text-sm bg-white focus:outline-none focus:border-blue-500 font-semibold"
-                      placeholder="e.g. admin@vcloths.com"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1.5">Password</label>
-                    <input
-                      type="password"
-                      value={editFlipkartPassword}
-                      onChange={(e) => setEditFlipkartPassword(e.target.value)}
-                      className="w-full px-3 py-2 border border-slate-200 rounded text-sm bg-white focus:outline-none focus:border-blue-500"
-                      placeholder="Enter password"
-                      required
-                    />
-                  </div>
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1.5">Sales Channel Platform</label>
+                  <select
+                    value={editPlatform}
+                    onChange={(e) => setEditPlatform(e.target.value)}
+                    className="w-full px-3 py-1.5 border border-slate-200 rounded text-sm bg-white font-semibold"
+                    required
+                  >
+                    <option value="meesho">Meesho (Blue)</option>
+                    <option value="flipkart">Flipkart (Orange)</option>
+                  </select>
                 </div>
-              )}
 
-              <div className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  id="editIsActive"
-                  checked={editIsActive}
-                  onChange={(e) => setEditIsActive(e.target.checked)}
-                  className="rounded text-blue-600 focus:ring-blue-500"
-                />
-                <label htmlFor="editIsActive" className="text-xs font-bold text-slate-500 uppercase select-none">Account Active</label>
+                {editPlatform === 'meesho' && (
+                  <div className="p-4 bg-slate-50 border border-slate-200 rounded-md space-y-3">
+                    <span className="text-[10px] uppercase font-extrabold text-blue-600 tracking-wider block">Meesho Credentials</span>
+                    
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Supplier ID</label>
+                        <input
+                          type="text"
+                          value={editMeeshoSupplierId}
+                          onChange={(e) => setEditMeeshoSupplierId(e.target.value)}
+                          className="w-full px-3 py-1.5 border border-slate-200 rounded text-xs bg-white focus:outline-none focus:border-blue-500 font-medium"
+                          placeholder="e.g. 774827"
+                          required
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Username / Phone</label>
+                        <input
+                          type="text"
+                          value={editMeeshoUsername}
+                          onChange={(e) => setEditMeeshoUsername(e.target.value)}
+                          className="w-full px-3 py-1.5 border border-slate-200 rounded text-xs bg-white focus:outline-none focus:border-blue-500 font-medium"
+                          placeholder="e.g. 9876543210"
+                          required
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Password</label>
+                      <input
+                        type="password"
+                        value={editMeeshoPassword}
+                        onChange={(e) => setEditMeeshoPassword(e.target.value)}
+                        className="w-full px-3 py-1.5 border border-slate-200 rounded text-xs bg-white focus:outline-none focus:border-blue-500 font-medium"
+                        placeholder="Enter password"
+                        required
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {editPlatform === 'flipkart' && (
+                  <div className="p-4 bg-slate-50 border border-slate-200 rounded-md space-y-3">
+                    <span className="text-[10px] uppercase font-extrabold text-orange-600 tracking-wider block">Flipkart Credentials</span>
+                    
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Supplier ID</label>
+                        <input
+                          type="text"
+                          value={editFlipkartSupplierId}
+                          onChange={(e) => setEditFlipkartSupplierId(e.target.value)}
+                          className="w-full px-3 py-1.5 border border-slate-200 rounded text-xs bg-white focus:outline-none focus:border-blue-500 font-medium"
+                          placeholder="e.g. FK-BALAPARI"
+                          required
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Username / Email</label>
+                        <input
+                          type="text"
+                          value={editFlipkartUsername}
+                          onChange={(e) => setEditFlipkartUsername(e.target.value)}
+                          className="w-full px-3 py-1.5 border border-slate-200 rounded text-xs bg-white focus:outline-none focus:border-blue-500 font-medium"
+                          placeholder="e.g. admin@vcloths.com"
+                          required
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Password</label>
+                      <input
+                        type="password"
+                        value={editFlipkartPassword}
+                        onChange={(e) => setEditFlipkartPassword(e.target.value)}
+                        className="w-full px-3 py-1.5 border border-slate-200 rounded text-xs bg-white focus:outline-none focus:border-blue-500 font-medium"
+                        placeholder="Enter password"
+                        required
+                      />
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex items-center gap-2 pt-1">
+                  <input
+                    type="checkbox"
+                    id="editIsActive"
+                    checked={editIsActive}
+                    onChange={(e) => setEditIsActive(e.target.checked)}
+                    className="rounded text-blue-600 focus:ring-blue-500 h-4 w-4"
+                  />
+                  <label htmlFor="editIsActive" className="text-xs font-bold text-slate-500 uppercase select-none cursor-pointer">Account Active</label>
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1.5">Notes / Description</label>
+                  <textarea
+                    value={editNotes}
+                    onChange={(e) => setEditNotes(e.target.value)}
+                    rows={2}
+                    className="w-full px-3 py-1.5 border border-slate-200 rounded text-sm focus:outline-none focus:border-blue-500 font-medium resize-none"
+                  ></textarea>
+                </div>
               </div>
 
-              <div>
-                <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Notes / Description</label>
-                <textarea
-                  value={editNotes}
-                  onChange={(e) => setEditNotes(e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-200 rounded text-sm focus:outline-none focus:border-blue-500 font-medium"
-                ></textarea>
-              </div>
-
-              <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
+              <div className="p-4 bg-slate-50 border-t border-slate-100 flex justify-end gap-3 flex-shrink-0">
                 <button
                   type="button"
                   onClick={() => setIsEditModalOpen(false)}
-                  className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded"
+                  className="px-4 py-2 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 text-xs font-bold rounded transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded"
+                  className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded transition-colors"
                 >
                   Save Changes
                 </button>
