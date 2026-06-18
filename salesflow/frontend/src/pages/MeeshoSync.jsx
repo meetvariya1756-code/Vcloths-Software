@@ -507,10 +507,10 @@ export default function MeeshoSync() {
           </div>
 
           {/* ── RIGHT: Master SKU Linker (Bulk Queue) ────────────────────────── */}
-          <div className="bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden sticky top-6">
+          <div className="bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden sticky top-6 flex flex-col" style={{ maxHeight: 'calc(100vh - 120px)' }}>
 
-            {/* Panel Header */}
-            <div className="px-5 py-4 border-b border-slate-100 bg-gradient-to-br from-slate-900 to-slate-700">
+            {/* Panel Header — fixed, never scrolls */}
+            <div className="px-5 py-4 border-b border-slate-100 bg-gradient-to-br from-slate-900 to-slate-700 flex-shrink-0">
               <h3 className="text-sm font-bold text-white flex items-center gap-2">
                 <Shuffle size={16} className="text-blue-400" />
                 Master SKU Linker
@@ -519,6 +519,9 @@ export default function MeeshoSync() {
                 Select multiple SKUs from the left, then link them all to one Master Product
               </p>
             </div>
+
+            {/* Scrollable body — everything below the header scrolls */}
+            <div className="flex-1 overflow-y-auto">
 
             {bulkQueue.length === 0 ? (
               /* Empty state */
@@ -693,6 +696,8 @@ export default function MeeshoSync() {
 
               </div>
             )}
+
+            </div>{/* end scrollable body */}
           </div>
         </div>
 
