@@ -46,3 +46,12 @@ salesflow/backend/uploads/*
 !salesflow/backend/uploads/.gitkeep
 salesflow/pdf-parser/temp_uploads/*
 !salesflow/pdf-parser/temp_uploads/.gitkeep
+
+# Scratch / Debug files (temporary investigation scripts)
+salesflow/backend/scratch_debug_*.js
+salesflow/backend/scratch_inspect_*.js
+salesflow/backend/scratch_list_*.js
+salesflow/backend/scratch_parse_*.py
+salesflow/backend/scratch_search_*.js
+salesflow/backend/scratch_responses/
+salesflow/backend/scratch_screenshots/
