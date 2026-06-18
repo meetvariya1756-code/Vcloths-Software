@@ -38,7 +38,7 @@ export default function Login() {
         {/* Title */}
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold tracking-tight text-slate-900 font-serif">SalesFlow</h1>
-          <p className="text-sm text-slate-500 mt-1">Indian E-Commerce Sales & Label Manager</p>
+          <p className="text-sm text-slate-500 mt-1">E-Commerce Sales & Label Manager</p>
         </div>
 
         {/* Error message */}
@@ -81,7 +81,7 @@ export default function Login() {
         </form>
 
         <div className="mt-8 text-center border-t border-slate-100 pt-6">
-          <p className="text-xs text-slate-400 font-medium">Default credentials: admin / admin123</p>
+          <p className="text-xs text-slate-400 font-medium">Default credentials: Venner-Sales / VenneR@2Thou-26</p>
         </div>
       </div>
     </div>
