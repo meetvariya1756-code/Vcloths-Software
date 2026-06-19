@@ -50,6 +50,7 @@ def parse_pdf():
             return jsonify({"error": str(e)}), 500
 
 if __name__ == '__main__':
-    # Run on port 5001 as specified in config
-    app.run(host='127.0.0.1', port=5001, debug=True)
+    # Run on host 0.0.0.0 and port from environment variable for production
+    port = int(os.environ.get('PORT', 5001))
+    app.run(host='0.0.0.0', port=port)
 
