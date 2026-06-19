@@ -96,6 +96,9 @@ model SalesRecord {
   account         Account  @relation(fields: [account_id], references: [id], onDelete: Cascade)
   product         Product  @relation(fields: [product_id], references: [id], onDelete: Cascade)
 
+  @@index([account_id])
+  @@index([date])
+  @@index([order_id])
   @@map("sales_records")
 }
 

@@ -17,6 +17,18 @@ function getPcNumber(sku) {
   if (!sku) return 1;
   const upper = sku.toUpperCase().trim();
   
+  // For BARFI/BURFI products, check explicit keywords
+  if (upper.includes('BARFI') || upper.includes('BURFI')) {
+    if (/PC[-_]?3/i.test(upper)) return 3;
+    if (/PC[-_]?2/i.test(upper)) return 2;
+    if (/PC[-_]?1/i.test(upper)) return 1;
+    if (upper.includes('+')) {
+      const parts = upper.split('+');
+      if (parts.length >= 2) return parts.length;
+    }
+    return 2; // Default to 2 for Barfi products if not explicitly specified
+  }
+
   // 1. Match PC-X, PC_X, PCX
   const pcMatch = upper.match(/PC[-_]?(\d+)/i);
   if (pcMatch) {
@@ -82,6 +94,7 @@ router.post('/upload', upload.single('file'), async (req, res) => {
 
   const accountId = parseInt(account_id);
   const filename = req.file.originalname;
+  let pdfImport = null;
 
   try {
     const account = await prisma.account.findUnique({
@@ -108,7 +121,7 @@ router.post('/upload', upload.single('file'), async (req, res) => {
     }
 
     // 2. Create/Upsert PDF import with 'processing' status
-    const pdfImport = await prisma.pdfImport.upsert({
+    pdfImport = await prisma.pdfImport.upsert({
       where: {
         filename_account_id: {
           filename,
@@ -140,18 +153,30 @@ router.post('/upload', upload.single('file'), async (req, res) => {
 
     // Check for duplicate PDF upload by looking up unique order IDs in database
     const orderIds = parsedRecords.map(r => r.order_id).filter(id => id && !id.startsWith('MOCK-'));
+    let filteredRecords = parsedRecords;
     if (orderIds.length > 0) {
-      const duplicateRecord = await prisma.salesRecord.findFirst({
+      const existingRecords = await prisma.salesRecord.findMany({
         where: {
+          account_id: accountId, // Account Isolation
           order_id: { in: orderIds }
-        }
+        },
+        select: { order_id: true }
       });
-      if (duplicateRecord) {
-        // Update the import record to error/done or delete it, but return 400 immediately
-        await prisma.pdfImport.delete({
-          where: { id: pdfImport.id }
-        });
-        return res.status(400).json({ error: 'This PDF has already been added.' });
+      const existingOrderIds = new Set(existingRecords.map(r => r.order_id));
+
+      if (existingOrderIds.size > 0) {
+        const duplicateRatio = existingOrderIds.size / orderIds.length;
+        if (duplicateRatio > 0.95) {
+          // If more than 95% of the orders are duplicates, treat as a duplicate PDF file upload
+          await prisma.pdfImport.delete({
+            where: { id: pdfImport.id }
+          });
+          return res.status(400).json({ error: 'This PDF has already been added.' });
+        } else {
+          // Otherwise, proceed with importing all records (no filtering).
+          // We do not filter out individual duplicate order IDs to ensure physical page/label count matches software count.
+          console.log(`Found ${existingOrderIds.size} existing order IDs for this account. Proceeding with all ${filteredRecords.length} records to preserve label count.`);
+        }
       }
     }
 
@@ -160,7 +185,7 @@ router.post('/upload', upload.single('file'), async (req, res) => {
     const unmappedSkus = new Set();
     const finalDate = override_date ? new Date(override_date).toISOString() : null;
 
-    for (const r of parsedRecords) {
+    for (const r of filteredRecords) {
       const recordDate = finalDate || r.date;
       const mapping = await findBestSkuMapping(prisma, r.raw_sku, account.platform);
       if (mapping) {
@@ -178,7 +203,12 @@ router.post('/upload', upload.single('file'), async (req, res) => {
         
         const orderQtyFromPdf = r.quantity ? parseInt(r.quantity) : 1;
         const parsedPcNumber = r.pack_size ? parseInt(r.pack_size) : getPcNumber(r.raw_sku);
-        const pcMultiplier = mapping.quantity > 1 ? mapping.quantity : parsedPcNumber;
+        let pcMultiplier = parsedPcNumber;
+        if (mapping.quantity > 1) {
+          pcMultiplier = mapping.quantity;
+        } else if (mapping.product && mapping.product.labels_per_unit > 1) {
+          pcMultiplier = mapping.product.labels_per_unit;
+        }
         
         const totalPieces = orderQtyFromPdf * pcMultiplier;
         const revenue = totalPieces * price;
@@ -293,6 +323,16 @@ router.post('/upload', upload.single('file'), async (req, res) => {
     console.error(err);
     if (req.file && fs.existsSync(req.file.path)) {
       fs.unlinkSync(req.file.path);
+    }
+    if (pdfImport) {
+      try {
+        await prisma.pdfImport.delete({
+          where: { id: pdfImport.id }
+        });
+        console.log(`Successfully cleaned up pdfImport ID ${pdfImport.id} after upload failure.`);
+      } catch (dbErr) {
+        console.error("Failed to clean up pdfImport record on error:", dbErr.message);
+      }
     }
     res.status(500).json({ error: 'Failed to process PDF import: ' + err.message });
   }

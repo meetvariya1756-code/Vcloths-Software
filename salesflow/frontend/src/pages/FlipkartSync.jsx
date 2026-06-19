@@ -32,6 +32,56 @@ export default function FlipkartSync() {
   // Product search in linker panel
   const [productSearch, setProductSearch] = useState('');
 
+  // Remapping individual SKU
+  const [isRemapModalOpen, setIsRemapModalOpen] = useState(false);
+  const [remapItem, setRemapItem] = useState(null);
+  const [remapProductId, setRemapProductId] = useState('');
+  const [remapColorVariant, setRemapColorVariant] = useState('');
+  const [remapSizeVariant, setRemapSizeVariant] = useState('');
+  const [isRemapSaving, setIsRemapSaving] = useState(false);
+  const [remapError, setRemapError] = useState('');
+  const [remapSuccess, setRemapSuccess] = useState(false);
+
+  const handleOpenRemapModal = (item) => {
+    setRemapItem(item);
+    setRemapProductId(item.product_id ? item.product_id.toString() : '');
+    setRemapColorVariant(item.color_variant || 'Assorted');
+    setRemapSizeVariant(item.size_variant || 'Free');
+    setRemapError('');
+    setRemapSuccess(false);
+    setIsRemapModalOpen(true);
+  };
+
+  const handleRemapSubmit = async (e) => {
+    e.preventDefault();
+    if (!remapProductId) {
+      setRemapError('Please select a Master Product.');
+      return;
+    }
+    setIsRemapSaving(true);
+    setRemapError('');
+    setRemapSuccess(false);
+
+    try {
+      await api.put(`/accounts/${remapItem.account_id}/imported-skus/${remapItem.id}/map`, {
+        product_id: parseInt(remapProductId),
+        color_variant: remapColorVariant || null,
+        size_variant: remapSizeVariant || null
+      });
+
+      setRemapSuccess(true);
+      await fetchAllImportedSkus();
+      setTimeout(() => {
+        setIsRemapModalOpen(false);
+        setRemapItem(null);
+      }, 1000);
+    } catch (err) {
+      setRemapError(err.response?.data?.error || 'Failed to update mapping.');
+    } finally {
+      setIsRemapSaving(false);
+    }
+  };
+
   useEffect(() => {
     fetchFlipkartAccounts();
     fetchMasterProducts();
@@ -466,11 +516,25 @@ export default function FlipkartSync() {
                                 </span>
                               )}
                               {item.product_id ? (
-                                <span className="px-1.5 py-0.5 rounded-full text-[8px] font-bold bg-orange-50 border border-orange-200 text-orange-700 max-w-[90px] truncate" title={item.product?.name}>
+                                <span 
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleOpenRemapModal(item);
+                                  }}
+                                  className="px-1.5 py-0.5 rounded-full text-[8px] font-bold bg-orange-50 border border-orange-200 text-orange-700 max-w-[90px] truncate cursor-pointer hover:bg-orange-100 transition-colors" 
+                                  title="Click to Remap / Edit SKU"
+                                >
                                   ✓ {item.product?.name}
                                 </span>
                               ) : (
-                                <span className="px-1.5 py-0.5 rounded-full text-[8px] font-bold bg-slate-100 border border-slate-200 text-slate-500">
+                                <span 
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleOpenRemapModal(item);
+                                  }}
+                                  className="px-1.5 py-0.5 rounded-full text-[8px] font-bold bg-slate-100 border border-slate-200 text-slate-500 cursor-pointer hover:bg-slate-200 transition-colors"
+                                  title="Click to Map SKU"
+                                >
                                   Unmapped
                                 </span>
                               )}
@@ -613,7 +677,7 @@ export default function FlipkartSync() {
                       <input
                         type="text"
                         value={productSearch}
-                        onChange={e => productSearch && setProductSearch(e.target.value)}
+                        onChange={e => setProductSearch(e.target.value)}
                         placeholder="Filter products..."
                         className="w-full pl-7 pr-3 py-1.5 border border-slate-200 rounded text-xs focus:outline-none text-slate-700 font-medium"
                       />
@@ -704,6 +768,123 @@ export default function FlipkartSync() {
         </div>
 
       </div>
+
+      {/* Remap SKU Modal */}
+      {isRemapModalOpen && remapItem && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 flex items-center justify-center p-4">
+          <div className="bg-white border border-slate-200 rounded-lg max-w-md w-full p-6 space-y-6 shadow-xl">
+            <div className="flex justify-between items-start">
+              <div>
+                <h3 className="text-md font-bold text-slate-800">Map Marketplace SKU</h3>
+                <p className="text-xs text-slate-400 font-medium">Link this catalog item to a master product definition</p>
+              </div>
+              <button
+                onClick={() => setIsRemapModalOpen(false)}
+                className="text-slate-400 hover:text-slate-600 transition-colors"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 flex items-center gap-3">
+              {remapItem.image_url ? (
+                <img
+                  src={remapItem.image_url}
+                  alt="Product"
+                  className="w-12 h-12 object-cover rounded border border-slate-200 bg-white"
+                />
+              ) : (
+                <div className="w-12 h-12 bg-slate-100 rounded border border-slate-200 flex items-center justify-center text-slate-400 text-[10px] font-bold">
+                  IMG
+                </div>
+              )}
+              <div className="min-w-0">
+                <div className="font-mono font-bold text-xs text-orange-700 bg-orange-200/60 px-1.5 py-0.5 rounded inline-block mb-1">
+                  {remapItem.marketplace_sku}
+                </div>
+                <div className="font-semibold text-slate-700 truncate text-[11px]" title={remapItem.title}>
+                  {remapItem.title || <span className="text-slate-300 font-normal">Untitled</span>}
+                </div>
+              </div>
+            </div>
+
+            <form onSubmit={handleRemapSubmit} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Connect to Product Model</label>
+                <select
+                  value={remapProductId}
+                  onChange={(e) => setRemapProductId(e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-200 rounded text-sm bg-white font-medium text-slate-700 focus:outline-none focus:border-orange-500"
+                  required
+                >
+                  <option value="">-- Select Product --</option>
+                  {products.map(p => (
+                    <option key={p.id} value={p.id}>{p.name} (₹{(p.base_price / 100).toFixed(0)})</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Color Variant</label>
+                  <input
+                    type="text"
+                    value={remapColorVariant}
+                    onChange={(e) => setRemapColorVariant(e.target.value)}
+                    className="w-full px-3 py-2 border border-slate-200 rounded text-sm focus:outline-none focus:border-orange-500"
+                    placeholder="e.g. Assorted"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Size Variant</label>
+                  <input
+                    type="text"
+                    value={remapSizeVariant}
+                    onChange={(e) => setRemapSizeVariant(e.target.value)}
+                    className="w-full px-3 py-2 border border-slate-200 rounded text-sm focus:outline-none focus:border-orange-500"
+                    placeholder="e.g. Free"
+                  />
+                </div>
+              </div>
+
+              {remapError && (
+                <div className="flex items-center gap-2 text-[11px] text-rose-700 bg-rose-50 border border-rose-200 rounded px-3 py-2 font-semibold">
+                  <AlertCircle size={13} className="flex-shrink-0" />
+                  {remapError}
+                </div>
+              )}
+
+              {remapSuccess && (
+                <div className="flex items-center gap-2 text-[11px] text-emerald-700 bg-emerald-50 border border-emerald-200 rounded px-3 py-2 font-bold animate-pulse">
+                  <CheckCircle size={13} className="flex-shrink-0" />
+                  SKU mapped successfully!
+                </div>
+              )}
+
+              <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setIsRemapModalOpen(false)}
+                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isRemapSaving}
+                  className="px-4 py-2 bg-orange-600 hover:bg-orange-700 disabled:bg-slate-200 disabled:text-slate-400 text-white text-xs font-bold rounded flex items-center gap-1.5 transition-all shadow-sm"
+                >
+                  {isRemapSaving ? (
+                    <><RefreshCw size={13} className="animate-spin" /> Saving...</>
+                  ) : (
+                    'Update Link'
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -1,4 +1,5 @@
 import os
+import uuid
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from werkzeug.utils import secure_filename
@@ -32,7 +33,9 @@ def parse_pdf():
         
     if file:
         filename = secure_filename(file.filename)
-        filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        unique_id = uuid.uuid4().hex
+        temp_filename = f"{unique_id}_{filename}"
+        filepath = os.path.join(app.config['UPLOAD_FOLDER'], temp_filename)
         file.save(filepath)
         
         try:

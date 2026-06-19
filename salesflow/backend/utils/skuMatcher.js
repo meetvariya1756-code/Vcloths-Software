@@ -44,32 +44,75 @@ function levenshteinDistance(a, b) {
   return tmp[alen][blen];
 }
 
+function getExplicitPackSize(sku) {
+  if (!sku) return null;
+  const upper = sku.toUpperCase().trim();
+  
+  // 1. Combo colors count (highest priority, e.g. Black+Cream)
+  if (upper.includes('+')) {
+    const parts = upper.split('+');
+    if (parts.length >= 2 && parts.length <= 9) {
+      return parts.length;
+    }
+  }
+
+  // 2. Explicit PC-X, PC_X, PCX
+  const pcMatch = upper.match(/PC[-_]?([1-9])/i);
+  if (pcMatch) return parseInt(pcMatch[1]);
+  
+  // 3. Shorts specific SH-PX or SHPX
+  const shpMatch = upper.match(/SH-P([1-9])/i);
+  if (shpMatch) return parseInt(shpMatch[1]);
+  const shpcMatch = upper.match(/SHPC[-_]?([1-9])/i);
+  if (shpcMatch) return parseInt(shpcMatch[1]);
+  
+  // 4. trailing digit after dash or underscore (must be small, i.e. 1-9)
+  const trailingMatch = upper.match(/[-_]([1-9])$/);
+  if (trailingMatch) return parseInt(trailingMatch[1]);
+  
+  return null;
+}
+
 async function findBestSkuMapping(prisma, rawSku, platform = 'meesho') {
   if (!rawSku) return null;
   const sku = rawSku.trim();
+  const rawPackSize = getExplicitPackSize(sku);
 
-  // 1. Try exact match
+  // Helper to validate mapping pack size matches SKU explicit pack size
+  const isValidMapping = (m) => {
+    if (!m || !m.product) return false;
+    if (rawPackSize !== null) {
+      const mappedPackSize = m.product.labels_per_unit;
+      if (mappedPackSize !== rawPackSize) {
+        return false;
+      }
+    }
+    return true;
+  };
+
+  // 1. Try exact match — always trust explicit user-set mappings
   let mapping = await prisma.skuMapping.findUnique({
     where: { marketplace_sku: sku },
     include: { product: true }
   });
-  if (mapping) return mapping;
+  if (mapping && mapping.product) return mapping; // Exact DB mapping: always return without pack-size validation
 
   // Get all mappings for secondary matching
   const allMappings = await prisma.skuMapping.findMany({
     include: { product: true }
   });
 
-  // 2. Try case-insensitive match
+  // 2. Try case-insensitive match — still trust user-set mappings
   const lowerSku = sku.toLowerCase();
   mapping = allMappings.find(m => m.marketplace_sku.toLowerCase() === lowerSku);
-  if (mapping) return mapping;
+  if (mapping && mapping.product) return mapping; // Case-insensitive match: trust without pack-size validation
 
   // 3. Try fuzzy match (Levenshtein distance <= 2)
   let bestMapping = null;
   let minDistance = 3; // Must be <= 2
 
   for (const m of allMappings) {
+    if (!isValidMapping(m)) continue;
     const dist = levenshteinDistance(sku.toLowerCase(), m.marketplace_sku.toLowerCase());
     if (dist <= 2 && dist < minDistance) {
       minDistance = dist;
@@ -81,6 +124,7 @@ async function findBestSkuMapping(prisma, rawSku, platform = 'meesho') {
   // 4. Try containment match (e.g. raw description contains the SKU code)
   const cleanSku = sku.toLowerCase();
   for (const m of allMappings) {
+    if (!isValidMapping(m)) continue;
     if (cleanSku.includes(m.marketplace_sku.toLowerCase())) {
       return m;
     }
@@ -89,17 +133,10 @@ async function findBestSkuMapping(prisma, rawSku, platform = 'meesho') {
   // ── Handle SHORTS products — route to correct Shorts PC-X pack-size product ──
   const isShortsSkU = /SHPC|SH-P[1-4]|SHORTS/i.test(sku);
   if (isShortsSkU && !/(STRIP|CORD)/i.test(sku)) {
-    let packCount = 1;
-    // SHPC-X or SHPCX
-    const shpcMatch = sku.match(/SHPC[-_]?([1-4])/i);
-    if (shpcMatch) {
-      packCount = parseInt(shpcMatch[1]);
-    } else {
-      // SH-PX
-      const shpMatch = sku.match(/SH-P([1-4])/i);
-      if (shpMatch) packCount = parseInt(shpMatch[1]);
+    let packCount = getExplicitPackSize(sku);
+    if (packCount === null) {
+      packCount = 1;
     }
-    // Clamp to 1-4
     packCount = Math.min(4, Math.max(1, packCount));
 
     const targetName = `Shorts PC-${packCount} (Pack of ${packCount} Piece${packCount > 1 ? 's' : ''})`;
@@ -116,7 +153,18 @@ async function findBestSkuMapping(prisma, rawSku, platform = 'meesho') {
     }
 
     const existingMapping = allMappings.find(m => m.marketplace_sku.toLowerCase() === lowerSku);
-    if (existingMapping) return existingMapping;
+    if (existingMapping) {
+      if (existingMapping.product_id === product.id) {
+        return existingMapping;
+      } else {
+        const updatedMapping = await prisma.skuMapping.update({
+          where: { id: existingMapping.id },
+          data: { product_id: product.id },
+          include: { product: true }
+        });
+        return updatedMapping;
+      }
+    }
 
     const newMapping = await prisma.skuMapping.create({
       data: {
@@ -133,21 +181,11 @@ async function findBestSkuMapping(prisma, rawSku, platform = 'meesho') {
 
   // ── Handle BARFI products — route to correct BARFI-PC-X pack-size product ──
   if (cleanSku.includes('barfi') || cleanSku.includes('burfi')) {
-    let packSize = 1;
-    const pcMatch = sku.match(/PC[-_]?([1-3])/i);
-    if (pcMatch) {
-      packSize = parseInt(pcMatch[1]);
-    } else if (sku.includes('+')) {
-      const parts = sku.split('+');
-      if (parts.length >= 1 && parts.length <= 3) {
-        packSize = parts.length;
-      }
-    } else {
-      const endMatch = sku.match(/[-_]([1-3])$/);
-      if (endMatch) {
-        packSize = parseInt(endMatch[1]);
-      }
+    let packSize = getExplicitPackSize(sku);
+    if (packSize === null) {
+      packSize = 2; // Default to 2 for Barfi products if not explicitly specified
     }
+    packSize = Math.min(3, Math.max(1, packSize));
 
     const targetName = `BARFI-PC-${packSize} (Pack of ${packSize} Piece${packSize > 1 ? 's' : ''})`;
     let product = await prisma.product.findFirst({ where: { name: targetName } });
@@ -163,7 +201,18 @@ async function findBestSkuMapping(prisma, rawSku, platform = 'meesho') {
     }
 
     const existingMapping = allMappings.find(m => m.marketplace_sku.toLowerCase() === lowerSku);
-    if (existingMapping) return existingMapping;
+    if (existingMapping) {
+      if (existingMapping.product_id === product.id) {
+        return existingMapping;
+      } else {
+        const updatedMapping = await prisma.skuMapping.update({
+          where: { id: existingMapping.id },
+          data: { product_id: product.id },
+          include: { product: true }
+        });
+        return updatedMapping;
+      }
+    }
 
     const newMapping = await prisma.skuMapping.create({
       data: {
@@ -186,11 +235,7 @@ async function findBestSkuMapping(prisma, rawSku, platform = 'meesho') {
     // Smart checks for specific Indian e-commerce descriptions
     if (
       cleanSku.includes(nameLower) ||
-      (cleanSku.includes("gb") && nameLower.includes("gb")) || // "Men GB PC-2"
-      (cleanSku.includes("wb") && nameLower.includes("boxer")) || // "Men WB Boxer PC-3"
       (cleanSku.includes("short") && nameLower.includes("shorts")) || // "Shorts PC-3"
-      (cleanSku.includes("track pants") && nameLower.includes("gb")) || 
-      (cleanSku.includes("baggy") && nameLower.includes("gb")) ||
       (cleanSku.includes("boxer") && nameLower.includes("boxer"))
     ) {
       const associatedMapping = allMappings.find(m => m.product_id === p.id);

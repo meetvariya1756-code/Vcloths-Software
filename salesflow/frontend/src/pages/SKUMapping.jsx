@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Shuffle, Plus, Search, Trash2, FileSpreadsheet, Sparkles, HelpCircle } from 'lucide-react';
+import { Shuffle, Plus, Search, Trash2, FileSpreadsheet, Sparkles, HelpCircle, Edit } from 'lucide-react';
 import api from '../api';
 import Header from '../components/Header';
 import { formatIndianCurrency, getPlatformBadge } from './Dashboard';
@@ -12,12 +12,20 @@ export default function SKUMapping() {
   // Modals
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isBulkModalOpen, setIsBulkModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editingMapping, setEditingMapping] = useState(null);
 
   // Form Fields
   const [marketplaceSku, setMarketplaceSku] = useState('');
   const [selectedProductId, setSelectedProductId] = useState('');
   const [sizeVariant, setSizeVariant] = useState('');
   const [platform, setPlatform] = useState('meesho');
+
+  // Edit Form Fields
+  const [editMarketplaceSku, setEditMarketplaceSku] = useState('');
+  const [editSelectedProductId, setEditSelectedProductId] = useState('');
+  const [editSizeVariant, setEditSizeVariant] = useState('');
+  const [editPlatform, setEditPlatform] = useState('meesho');
 
   // Bulk Fields
   const [csvText, setCsvText] = useState('');
@@ -68,6 +76,37 @@ export default function SKUMapping() {
       fetchMappings();
     } catch (err) {
       alert(err.response?.data?.error || 'Failed to create SKU mapping');
+    }
+  };
+
+  const handleEditClick = (mapping) => {
+    setEditingMapping(mapping);
+    setEditMarketplaceSku(mapping.marketplace_sku);
+    setEditSelectedProductId(mapping.product_id.toString());
+    setEditSizeVariant(mapping.size_variant || '');
+    setEditPlatform(mapping.platform || 'meesho');
+    setIsEditModalOpen(true);
+  };
+
+  const handleEditMappingSubmit = async (e) => {
+    e.preventDefault();
+    if (!editMarketplaceSku || !editSelectedProductId || !editPlatform) {
+      alert('Please fill out all required fields');
+      return;
+    }
+
+    try {
+      await api.put(`/sku-mappings/${editingMapping.id}`, {
+        marketplace_sku: editMarketplaceSku,
+        product_id: parseInt(editSelectedProductId),
+        size_variant: editSizeVariant,
+        platform: editPlatform
+      });
+      setIsEditModalOpen(false);
+      setEditingMapping(null);
+      fetchMappings();
+    } catch (err) {
+      alert(err.response?.data?.error || 'Failed to update SKU mapping');
     }
   };
 
@@ -174,12 +213,22 @@ export default function SKUMapping() {
                       {formatIndianCurrency(m.product.base_price)}
                     </td>
                     <td className="py-3.5 px-6 text-right">
-                      <button
-                        onClick={() => handleDeleteMapping(m.id)}
-                        className="p-1.5 hover:bg-red-50 border border-transparent hover:border-red-100 text-red-400 hover:text-red-600 rounded transition-all"
-                      >
-                        <Trash2 size={13} />
-                      </button>
+                      <div className="flex justify-end gap-2">
+                        <button
+                          onClick={() => handleEditClick(m)}
+                          className="p-1.5 hover:bg-slate-100 border border-transparent hover:border-slate-200 text-slate-500 hover:text-slate-700 rounded transition-all"
+                          title="Edit SKU Mapping"
+                        >
+                          <Edit size={13} />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteMapping(m.id)}
+                          className="p-1.5 hover:bg-red-50 border border-transparent hover:border-red-100 text-red-400 hover:text-red-600 rounded transition-all"
+                          title="Delete SKU Mapping"
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -269,6 +318,88 @@ export default function SKUMapping() {
                   className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded"
                 >
                   Save Mapping
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Edit SKU Mapping Modal */}
+      {isEditModalOpen && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 flex items-center justify-center p-4">
+          <div className="bg-white border border-slate-200 rounded-lg max-w-md w-full p-6 space-y-6 shadow-xl">
+            <div>
+              <h3 className="text-md font-bold text-slate-800">Edit SKU Mapping</h3>
+              <p className="text-xs text-slate-400 font-medium">Update the marketplace mapping for this SKU</p>
+            </div>
+
+            <form onSubmit={handleEditMappingSubmit} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Marketplace SKU Code</label>
+                <input
+                  type="text"
+                  value={editMarketplaceSku}
+                  onChange={(e) => setEditMarketplaceSku(e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-200 rounded text-sm focus:outline-none focus:border-blue-500 font-mono"
+                  placeholder="e.g. MEN-WB-BGY-PC-3"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Sales Platform</label>
+                <select
+                  value={editPlatform}
+                  onChange={(e) => setEditPlatform(e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-200 rounded text-sm bg-white"
+                  required
+                >
+                  <option value="meesho">Meesho (Blue)</option>
+                  <option value="flipkart">Flipkart (Orange)</option>
+                  <option value="amazon">Amazon (Green)</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Connect to Product Model</label>
+                <select
+                  value={editSelectedProductId}
+                  onChange={(e) => setEditSelectedProductId(e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-200 rounded text-sm bg-white"
+                  required
+                >
+                  <option value="">-- Select Product --</option>
+                  {products.map(p => (
+                    <option key={p.id} value={p.id}>{p.name} (₹{(p.base_price / 100).toFixed(0)})</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Size Variant (Optional)</label>
+                <input
+                  type="text"
+                  value={editSizeVariant}
+                  onChange={(e) => setEditSizeVariant(e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-200 rounded text-sm"
+                  placeholder="e.g. XL"
+                />
+              </div>
+
+              <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setIsEditModalOpen(false)}
+                  className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded"
+                >
+                  Update Mapping
                 </button>
               </div>
             </form>

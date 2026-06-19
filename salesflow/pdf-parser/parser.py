@@ -2,6 +2,22 @@ import pdfplumber
 import re
 from datetime import datetime
 
+def clean_sku_suffix(sku_str):
+    if not sku_str:
+        return ""
+    sku_clean = sku_str.replace("\n", "").strip()
+    # Strip trailing parenthesized digits (e.g. (5), (2))
+    sku_clean = re.sub(r'\(\d+\)$', '', sku_clean).strip()
+    match = re.search(r'([_-][a-zA-Z0-9]+)$', sku_clean)
+    if match:
+        suffix = match.group(1)
+        remaining = sku_clean[:-len(suffix)].strip()
+        # If remaining ends with 'pc' (case-insensitive) or 'pc-', don't strip
+        if remaining.lower().endswith('pc') or remaining.lower().endswith('pc-'):
+            return sku_clean
+        return remaining
+    return sku_clean
+
 def clean_header(val):
     if val is None:
         return ""
@@ -111,13 +127,36 @@ def extract_sales_from_pdf(file_path, original_filename=None):
             
     with pdfplumber.open(file_path) as pdf:
         for page_num, page in enumerate(pdf.pages):
+            # Extract text first so we can use it to guard against false-positive skips
             text = page.extract_text()
+
+            # Skip pages that are FAST Dispatch shipping-label-only pages.
+            # To avoid skipping real product pages, only skip if the page has NO product-related text.
+            PRODUCT_KEYWORDS = ["Product Details", "SKU", "MEN-WB", "MEN-GB", "KIDS-WB", "KIDS-GB",
+                                 "LDS-WB", "LDS-GB", "BARFI", "SHPC", "TRACK-PC", "PC-2", "PC-3",
+                                 "Seller SKU", "Item SKU", "Order ID", "Pyjama", "STRIP-SH", "CORD-SH"]
+            page_has_product_content = text and any(kw.lower() in text.lower() for kw in PRODUCT_KEYWORDS)
+
+            if not page_has_product_content:
+                # Check for the FAST Dispatch label image signature
+                is_fast_dispatch = False
+                for img in page.images:
+                    w = img.get('width', 0)
+                    h = img.get('height', 0)
+                    y0 = img.get('y0', 0)
+                    if 550 <= w <= 580 and 30 <= h <= 40 and y0 > 750:
+                        is_fast_dispatch = True
+                        break
+                if is_fast_dispatch:
+                    continue
+
             if not text:
                 continue
-                
+
             lines = text.split("\n")
-            
+
             # 1. Extract Invoice Date dynamically from the text lines
+
             date_val = filename_date
             
             if not date_val:
@@ -186,7 +225,7 @@ def extract_sales_from_pdf(file_path, original_filename=None):
                                 current_idx += 1
                             
                             # Clean SKU printer/order suffixes dynamically and merge wrap lines
-                            cleaned_sku = re.sub(r'([_-][a-zA-Z0-9]+)$', '', raw_sku_str).replace("\n", "").replace(" ", "")
+                            cleaned_sku = clean_sku_suffix(raw_sku_str).replace("\n", "").replace(" ", "")
                             
                             rec = {
                                 "raw_sku": cleaned_sku,
@@ -238,7 +277,7 @@ def extract_sales_from_pdf(file_path, original_filename=None):
                             if not raw_sku_str:
                                 continue
                             
-                            cleaned_sku = re.sub(r'_[a-zA-Z0-9]+$', '', raw_sku_str).replace(" ", "")
+                            cleaned_sku = clean_sku_suffix(raw_sku_str).replace(" ", "")
                             qty = parse_qty(row[qty_idx]) if qty_idx != -1 else 1
                             order_id = str(row[order_idx]).strip() if order_idx != -1 and row[order_idx] else f"MOCK-{datetime.utcnow().timestamp()}"
                             size_val = str(row[size_idx]).strip() if size_idx != -1 and row[size_idx] else ""
@@ -302,7 +341,7 @@ def extract_sales_from_pdf(file_path, original_filename=None):
                             
                 if found_sku:
                     found_sku = found_sku.strip()
-                    found_sku = re.sub(r'_[a-zA-Z0-9]+$', '', found_sku).replace(" ", "")
+                    found_sku = clean_sku_suffix(found_sku).replace(" ", "")
                     
                     size_val = ""
                     size_match = re.search(r"\b(S|M|L|XL|XXL|3XL|FS|24|26|28|30|32|34|36)\b", full_text_clean)

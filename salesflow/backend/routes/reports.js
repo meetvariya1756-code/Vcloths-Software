@@ -30,7 +30,8 @@ function getStandardizedSku(sku, productName) {
     }
     const endMatch = upperSku.match(/[-_]([1-3])$/);
     if (endMatch) return `BARFI-PC-${endMatch[1]}`;
-    return "BARFI-PC-1";
+    if (/PC[-_]?1/i.test(upperSku)) return "BARFI-PC-1";
+    return "BARFI-PC-2"; // Default to PC-2 instead of PC-1 for Barfi products if not explicitly PC-1
   }
 
   // If it's a Shorts PC-X product (new pack-size naming), read pack count from product name

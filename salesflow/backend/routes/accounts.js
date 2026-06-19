@@ -507,22 +507,58 @@ router.get('/:id/summary', async (req, res) => {
   }
 });
 
-// GET all imported SKUs across all accounts
+// GET all imported SKUs across all accounts (with optional server-side filtering + pagination)
 router.get('/all/imported-skus', async (req, res) => {
   try {
-    const skus = await prisma.importedSku.findMany({
-      include: {
-        product: true,
-        account: true
-      },
-      orderBy: { marketplace_sku: 'asc' }
-    });
-    res.json(skus);
+    const { account_id, search, mapped, page = '1', limit = '100' } = req.query;
+
+    const pageNum = Math.max(1, parseInt(page) || 1);
+    const limitNum = Math.min(500, Math.max(1, parseInt(limit) || 100));
+    const skip = (pageNum - 1) * limitNum;
+
+    // Build Prisma where clause
+    const where = {};
+
+    if (account_id) {
+      where.account_id = parseInt(account_id);
+    }
+
+    if (search && search.trim()) {
+      const q = search.trim();
+      where.OR = [
+        { marketplace_sku: { contains: q, mode: 'insensitive' } },
+        { title: { contains: q, mode: 'insensitive' } },
+        { catalog_name: { contains: q, mode: 'insensitive' } }
+      ];
+    }
+
+    if (mapped === 'true') {
+      where.product_id = { not: null };
+    } else if (mapped === 'false') {
+      where.product_id = null;
+    }
+
+    const [skus, total] = await prisma.$transaction([
+      prisma.importedSku.findMany({
+        where,
+        include: {
+          product: true,
+          account: true
+        },
+        orderBy: { marketplace_sku: 'asc' },
+        skip,
+        take: limitNum
+      }),
+      prisma.importedSku.count({ where })
+    ]);
+
+    res.json({ skus, total, page: pageNum, limit: limitNum });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to fetch all imported SKUs' });
   }
 });
+
 
 // GET all imported SKUs for an account
 router.get('/:id/imported-skus', async (req, res) => {

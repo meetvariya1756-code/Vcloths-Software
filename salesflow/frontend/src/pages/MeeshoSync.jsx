@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   RefreshCw, CheckCircle, HelpCircle, Shuffle, ChevronRight, Save,
   Layers, Search, X, Trash2, PlusCircle, CheckSquare, Square,
@@ -10,12 +10,18 @@ import Header from '../components/Header';
 export default function MeeshoSync() {
   const [accounts, setAccounts] = useState([]);
   const [importedSkus, setImportedSkus] = useState([]);
+  const [importedSkusTotal, setImportedSkusTotal] = useState(0);
+  const [importedSkusPage, setImportedSkusPage] = useState(1);
+  const [importedSkusLoading, setImportedSkusLoading] = useState(false);
   const [products, setProducts] = useState([]);
 
   // Filter & Search
   const [accountIdFilter, setAccountIdFilter] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+
+  // Debounce ref for search
+  const searchDebounceRef = useRef(null);
 
   // Sync
   const [syncingAccountId, setSyncingAccountId] = useState(null);
@@ -32,11 +38,65 @@ export default function MeeshoSync() {
   // Product search in linker panel
   const [productSearch, setProductSearch] = useState('');
 
+  // Remapping individual SKU
+  const [isRemapModalOpen, setIsRemapModalOpen] = useState(false);
+  const [remapItem, setRemapItem] = useState(null);
+  const [remapProductId, setRemapProductId] = useState('');
+  const [remapColorVariant, setRemapColorVariant] = useState('');
+  const [remapSizeVariant, setRemapSizeVariant] = useState('');
+  const [isRemapSaving, setIsRemapSaving] = useState(false);
+  const [remapError, setRemapError] = useState('');
+  const [remapSuccess, setRemapSuccess] = useState(false);
+
+  const handleOpenRemapModal = (item) => {
+    setRemapItem(item);
+    setRemapProductId(item.product_id ? item.product_id.toString() : '');
+    setRemapColorVariant(item.color_variant || 'Assorted');
+    setRemapSizeVariant(item.size_variant || 'Free');
+    setRemapError('');
+    setRemapSuccess(false);
+    setIsRemapModalOpen(true);
+  };
+
+  const handleRemapSubmit = async (e) => {
+    e.preventDefault();
+    if (!remapProductId) {
+      setRemapError('Please select a Master Product.');
+      return;
+    }
+    setIsRemapSaving(true);
+    setRemapError('');
+    setRemapSuccess(false);
+
+    try {
+      await api.put(`/accounts/${remapItem.account_id}/imported-skus/${remapItem.id}/map`, {
+        product_id: parseInt(remapProductId),
+        color_variant: remapColorVariant || null,
+        size_variant: remapSizeVariant || null
+      });
+
+      setRemapSuccess(true);
+      await fetchAllImportedSkus();
+      setTimeout(() => {
+        setIsRemapModalOpen(false);
+        setRemapItem(null);
+      }, 1000);
+    } catch (err) {
+      setRemapError(err.response?.data?.error || 'Failed to update mapping.');
+    } finally {
+      setIsRemapSaving(false);
+    }
+  };
+
+  // Re-fetch whenever filters or page change
   useEffect(() => {
     fetchMeeshoAccounts();
     fetchMasterProducts();
-    fetchAllImportedSkus();
   }, []);
+
+  useEffect(() => {
+    fetchAllImportedSkus(importedSkusPage);
+  }, [accountIdFilter, statusFilter, importedSkusPage]);
 
   const fetchMeeshoAccounts = async () => {
     try {
@@ -52,11 +112,41 @@ export default function MeeshoSync() {
     } catch (e) { console.error(e); }
   };
 
-  const fetchAllImportedSkus = async () => {
+  const fetchAllImportedSkus = useCallback(async (page = 1, overrideSearch) => {
+    setImportedSkusLoading(true);
     try {
-      const response = await api.get('/accounts/all/imported-skus');
-      setImportedSkus(response.data);
+      const params = new URLSearchParams();
+      params.set('limit', '100');
+      params.set('page', page.toString());
+      if (accountIdFilter) params.set('account_id', accountIdFilter);
+      const q = overrideSearch !== undefined ? overrideSearch : searchQuery;
+      if (q && q.trim()) params.set('search', q.trim());
+      if (statusFilter === 'mapped') params.set('mapped', 'true');
+      if (statusFilter === 'unmapped') params.set('mapped', 'false');
+      const response = await api.get(`/accounts/all/imported-skus?${params.toString()}`);
+      // Response is now { skus, total, page, limit }
+      const data = response.data;
+      if (data && Array.isArray(data.skus)) {
+        setImportedSkus(data.skus.filter(s => s.account?.platform?.toLowerCase() === 'meesho'));
+        setImportedSkusTotal(data.total || 0);
+      } else if (Array.isArray(data)) {
+        // Fallback for old API shape
+        setImportedSkus(data.filter(s => s.account?.platform?.toLowerCase() === 'meesho'));
+        setImportedSkusTotal(data.length);
+      }
     } catch (e) { console.error(e); }
+    finally { setImportedSkusLoading(false); }
+  }, [accountIdFilter, statusFilter, searchQuery]);
+
+  // Debounced search handler
+  const handleSearchChange = (e) => {
+    const val = e.target.value;
+    setSearchQuery(val);
+    setImportedSkusPage(1);
+    if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+    searchDebounceRef.current = setTimeout(() => {
+      fetchAllImportedSkus(1, val);
+    }, 350);
   };
 
   const handleManualSync = async (accountId) => {
@@ -159,23 +249,9 @@ export default function MeeshoSync() {
     }
   };
 
-  // ── FILTER ────────────────────────────────────────────────────────────────
-
-  const filteredSkus = importedSkus.filter(sku => {
-    if (sku.account?.platform?.toLowerCase() !== 'meesho') return false;
-    if (accountIdFilter && sku.account_id.toString() !== accountIdFilter) return false;
-    if (statusFilter === 'mapped' && !sku.product_id) return false;
-    if (statusFilter === 'unmapped' && sku.product_id) return false;
-    if (searchQuery) {
-      const q = searchQuery.toLowerCase();
-      return (
-        (sku.marketplace_sku || '').toLowerCase().includes(q) ||
-        (sku.title || '').toLowerCase().includes(q) ||
-        (sku.account?.meesho_supplier_id || '').toLowerCase().includes(q)
-      );
-    }
-    return true;
-  });
+  // filteredSkus is now just what the server returned (already filtered server-side)
+  const filteredSkus = importedSkus;
+  const totalPages = Math.max(1, Math.ceil(importedSkusTotal / 100));
 
   const allVisibleSelected = filteredSkus.length > 0 && filteredSkus.every(s => isInQueue(s.id));
   const someVisibleSelected = filteredSkus.some(s => isInQueue(s.id));
@@ -313,7 +389,7 @@ export default function MeeshoSync() {
                   <input
                     type="text"
                     value={searchQuery}
-                    onChange={e => setSearchQuery(e.target.value)}
+                    onChange={handleSearchChange}
                     placeholder="Search listings..."
                     className="w-full pl-8 pr-3 py-1.5 text-xs focus:outline-none text-slate-700 font-semibold"
                   />
@@ -323,7 +399,7 @@ export default function MeeshoSync() {
                 <label className="block text-[10px] font-extrabold uppercase text-slate-400 mb-1.5">Filter by Account</label>
                 <select
                   value={accountIdFilter}
-                  onChange={e => setAccountIdFilter(e.target.value)}
+                  onChange={e => { setAccountIdFilter(e.target.value); setImportedSkusPage(1); }}
                   className="w-full px-3 py-1.5 border border-slate-200 rounded text-xs bg-white font-semibold text-slate-700 focus:outline-none"
                 >
                   <option value="">All Accounts</option>
@@ -336,7 +412,7 @@ export default function MeeshoSync() {
                 <label className="block text-[10px] font-extrabold uppercase text-slate-400 mb-1.5">Mapping Status</label>
                 <select
                   value={statusFilter}
-                  onChange={e => setStatusFilter(e.target.value)}
+                  onChange={e => { setStatusFilter(e.target.value); setImportedSkusPage(1); }}
                   className="w-full px-3 py-1.5 border border-slate-200 rounded text-xs bg-white font-semibold text-slate-700 focus:outline-none"
                 >
                   <option value="all">All listings</option>
@@ -346,9 +422,13 @@ export default function MeeshoSync() {
               </div>
             </div>
 
-            {/* Table */}
             <div className="overflow-x-auto">
-              {filteredSkus.length > 0 ? (
+              {importedSkusLoading ? (
+                <div className="py-16 text-center text-slate-400 font-medium text-sm">
+                  <RefreshCw size={28} className="mx-auto text-slate-300 mb-3 animate-spin" />
+                  Loading catalog listings...
+                </div>
+              ) : filteredSkus.length > 0 ? (
                 <table className="w-full text-left text-xs border-collapse">
                   <thead>
                     <tr className="bg-slate-50 border-b border-slate-200 text-slate-500 font-semibold uppercase text-[10px]">
@@ -465,11 +545,25 @@ export default function MeeshoSync() {
                                 </span>
                               )}
                               {item.product_id ? (
-                                <span className="px-1.5 py-0.5 rounded-full text-[8px] font-bold bg-blue-50 border border-blue-200 text-blue-700 max-w-[90px] truncate" title={item.product?.name}>
+                                <span
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleOpenRemapModal(item);
+                                  }}
+                                  className="px-1.5 py-0.5 rounded-full text-[8px] font-bold bg-blue-50 border border-blue-200 text-blue-700 max-w-[90px] truncate cursor-pointer hover:bg-blue-100 transition-colors"
+                                  title="Click to Remap / Edit SKU"
+                                >
                                   ✓ {item.product?.name}
                                 </span>
                               ) : (
-                                <span className="px-1.5 py-0.5 rounded-full text-[8px] font-bold bg-slate-100 border border-slate-200 text-slate-500">
+                                <span
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleOpenRemapModal(item);
+                                  }}
+                                  className="px-1.5 py-0.5 rounded-full text-[8px] font-bold bg-slate-100 border border-slate-200 text-slate-500 cursor-pointer hover:bg-slate-200 transition-colors"
+                                  title="Click to Map SKU"
+                                >
                                   Unmapped
                                 </span>
                               )}
@@ -505,9 +599,38 @@ export default function MeeshoSync() {
                 </div>
               )}
             </div>
+
+            {/* Pagination */}
+            {!importedSkusLoading && importedSkusTotal > 0 && (
+              <div className="px-6 py-3 border-t border-slate-100 bg-slate-50 flex items-center justify-between">
+                <span className="text-[10px] text-slate-500 font-semibold">
+                  Showing {filteredSkus.length} of {importedSkusTotal} listings
+                  {totalPages > 1 ? ` · Page ${importedSkusPage} of ${totalPages}` : ''}
+                </span>
+                {totalPages > 1 && (
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setImportedSkusPage(p => Math.max(1, p - 1))}
+                      disabled={importedSkusPage === 1}
+                      className="px-3 py-1 text-[10px] font-bold border border-slate-200 rounded bg-white hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                    >
+                      ← Prev
+                    </button>
+                    <button
+                      onClick={() => setImportedSkusPage(p => Math.min(totalPages, p + 1))}
+                      disabled={importedSkusPage === totalPages}
+                      className="px-3 py-1 text-[10px] font-bold border border-slate-200 rounded bg-white hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                    >
+                      Next →
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           {/* ── RIGHT: Master SKU Linker (Bulk Queue) ────────────────────────── */}
+
           <div className="bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden sticky top-6 flex flex-col" style={{ maxHeight: 'calc(100vh - 120px)' }}>
 
             {/* Panel Header — fixed, never scrolls */}
@@ -703,6 +826,123 @@ export default function MeeshoSync() {
         </div>
 
       </div>
+
+      {/* Remap SKU Modal */}
+      {isRemapModalOpen && remapItem && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 flex items-center justify-center p-4">
+          <div className="bg-white border border-slate-200 rounded-lg max-w-md w-full p-6 space-y-6 shadow-xl">
+            <div className="flex justify-between items-start">
+              <div>
+                <h3 className="text-md font-bold text-slate-800">Map Marketplace SKU</h3>
+                <p className="text-xs text-slate-400 font-medium">Link this catalog item to a master product definition</p>
+              </div>
+              <button
+                onClick={() => setIsRemapModalOpen(false)}
+                className="text-slate-400 hover:text-slate-600 transition-colors"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 flex items-center gap-3">
+              {remapItem.image_url ? (
+                <img
+                  src={remapItem.image_url}
+                  alt="Product"
+                  className="w-12 h-12 object-cover rounded border border-slate-200 bg-white"
+                />
+              ) : (
+                <div className="w-12 h-12 bg-slate-100 rounded border border-slate-200 flex items-center justify-center text-slate-400 text-[10px] font-bold">
+                  IMG
+                </div>
+              )}
+              <div className="min-w-0">
+                <div className="font-mono font-bold text-xs text-slate-700 bg-slate-200/60 px-1.5 py-0.5 rounded inline-block mb-1">
+                  {remapItem.marketplace_sku}
+                </div>
+                <div className="font-semibold text-slate-700 truncate text-[11px]" title={remapItem.title}>
+                  {remapItem.title || <span className="text-slate-300 font-normal">Untitled</span>}
+                </div>
+              </div>
+            </div>
+
+            <form onSubmit={handleRemapSubmit} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Connect to Product Model</label>
+                <select
+                  value={remapProductId}
+                  onChange={(e) => setRemapProductId(e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-200 rounded text-sm bg-white font-medium text-slate-700 focus:outline-none focus:border-blue-500"
+                  required
+                >
+                  <option value="">-- Select Product --</option>
+                  {products.map(p => (
+                    <option key={p.id} value={p.id}>{p.name} (₹{(p.base_price / 100).toFixed(0)})</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Color Variant</label>
+                  <input
+                    type="text"
+                    value={remapColorVariant}
+                    onChange={(e) => setRemapColorVariant(e.target.value)}
+                    className="w-full px-3 py-2 border border-slate-200 rounded text-sm focus:outline-none focus:border-blue-500"
+                    placeholder="e.g. Assorted"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Size Variant</label>
+                  <input
+                    type="text"
+                    value={remapSizeVariant}
+                    onChange={(e) => setRemapSizeVariant(e.target.value)}
+                    className="w-full px-3 py-2 border border-slate-200 rounded text-sm focus:outline-none focus:border-blue-500"
+                    placeholder="e.g. Free"
+                  />
+                </div>
+              </div>
+
+              {remapError && (
+                <div className="flex items-center gap-2 text-[11px] text-rose-700 bg-rose-50 border border-rose-200 rounded px-3 py-2 font-semibold">
+                  <AlertCircle size={13} className="flex-shrink-0" />
+                  {remapError}
+                </div>
+              )}
+
+              {remapSuccess && (
+                <div className="flex items-center gap-2 text-[11px] text-emerald-700 bg-emerald-50 border border-emerald-200 rounded px-3 py-2 font-bold animate-pulse">
+                  <CheckCircle size={13} className="flex-shrink-0" />
+                  SKU mapped successfully!
+                </div>
+              )}
+
+              <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setIsRemapModalOpen(false)}
+                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isRemapSaving}
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-200 disabled:text-slate-400 text-white text-xs font-bold rounded flex items-center gap-1.5 transition-all shadow-sm"
+                >
+                  {isRemapSaving ? (
+                    <><RefreshCw size={13} className="animate-spin" /> Saving...</>
+                  ) : (
+                    'Update Link'
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
