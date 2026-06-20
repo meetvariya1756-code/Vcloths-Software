@@ -5,6 +5,10 @@ const prisma = new PrismaClient();
 const { scrapeMeeshoCatalog } = require('../meesho-scraper');
 const { scrapeFlipkartCatalog } = require('../flipkart-scraper');
 
+// Detect if running in a cloud environment (Render, Railway, etc.)
+// Scraping is blocked on cloud — must be done from local machine
+const isCloudEnv = () => process.env.RENDER === 'true' || process.env.RAILWAY_ENVIRONMENT || process.env.RAILWAY_STATIC_URL;
+
 // GET all accounts
 router.get('/', async (req, res) => {
   try {
@@ -259,18 +263,22 @@ const syncAllAccounts = async () => {
 // Reset stuck syncing statuses on startup
 const resetStuckSyncing = async () => {
   try {
+    const cloudMsg = isCloudEnv()
+      ? 'Server restarted. Sync must be triggered from your local machine (http://localhost:5173) — cloud scraping is blocked by marketplace security policies.'
+      : 'Sync timed out or aborted due to server restart. Please try triggering it again.';
+
     const meeshoResult = await prisma.account.updateMany({
       where: { meesho_sync_status: 'syncing' },
       data: {
         meesho_sync_status: 'failed',
-        meesho_sync_error: 'Sync timed out or aborted due to server restart. Please try triggering it again.'
+        meesho_sync_error: cloudMsg
       }
     });
     const flipkartResult = await prisma.account.updateMany({
       where: { flipkart_sync_status: 'syncing' },
       data: {
         flipkart_sync_status: 'failed',
-        flipkart_sync_error: 'Sync timed out or aborted due to server restart. Please try triggering it again.'
+        flipkart_sync_error: cloudMsg
       }
     });
     if (meeshoResult.count > 0 || flipkartResult.count > 0) {
@@ -283,15 +291,21 @@ const resetStuckSyncing = async () => {
 resetStuckSyncing();
 
 // Auto-sync accounts 2 minutes after startup, then every 6 hours
-setTimeout(() => {
-  console.log('[Auto-Sync Cron] Running initial startup synchronization...');
-  syncAllAccounts();
-}, 2 * 60 * 1000);
+// SKIPPED on cloud environments — marketplace scraping requires a local machine with a
+// residential IP to bypass Cloudflare/Akamai bot protection on Flipkart and Meesho.
+if (!isCloudEnv()) {
+  setTimeout(() => {
+    console.log('[Auto-Sync Cron] Running initial startup synchronization...');
+    syncAllAccounts();
+  }, 2 * 60 * 1000);
 
-setInterval(() => {
-  console.log('[Auto-Sync Cron] Running scheduled synchronization...');
-  syncAllAccounts();
-}, 6 * 60 * 60 * 1000);
+  setInterval(() => {
+    console.log('[Auto-Sync Cron] Running scheduled synchronization...');
+    syncAllAccounts();
+  }, 6 * 60 * 60 * 1000);
+} else {
+  console.log('[Auto-Sync Cron] Cloud environment detected — auto-sync disabled. Use local machine to sync.');
+}
 
 // POST new account
 router.post('/', async (req, res) => {
@@ -612,6 +626,14 @@ router.post('/:id/sync', async (req, res) => {
 
     if (!account) {
       return res.status(404).json({ error: 'Account not found' });
+    }
+
+    // Cloud environments cannot run Puppeteer scraping — inform user to use local machine
+    if (isCloudEnv()) {
+      const platformName = account.platform.charAt(0).toUpperCase() + account.platform.slice(1);
+      return res.status(400).json({
+        error: `Cannot sync from the cloud server. ${platformName} blocks automated logins from cloud IP addresses. Please open http://localhost:5173 on your computer and trigger the sync from there. Your data will automatically sync to the shared database.`
+      });
     }
 
     const plat = account.platform.toLowerCase();

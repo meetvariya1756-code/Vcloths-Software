@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   RefreshCw, CheckCircle, HelpCircle, Shuffle, ChevronRight, Save,
   Layers, Search, X, Trash2, PlusCircle, CheckSquare, Square,
-  LinkIcon, Package, AlertCircle, Zap
+  LinkIcon, Package, AlertCircle, Zap, Monitor, Wifi
 } from 'lucide-react';
 import api from '../api';
 import Header from '../components/Header';
@@ -25,6 +25,7 @@ export default function MeeshoSync() {
 
   // Sync
   const [syncingAccountId, setSyncingAccountId] = useState(null);
+  const [syncError, setSyncError] = useState(''); // global sync error banner
 
   // ── BULK SELECTION STATE ──────────────────────────────────────────────────
   const [bulkQueue, setBulkQueue] = useState([]); // array of ImportedSku objects
@@ -151,15 +152,20 @@ export default function MeeshoSync() {
 
   const handleManualSync = async (accountId) => {
     setSyncingAccountId(accountId);
+    setSyncError('');
     try {
       await api.post(`/accounts/${accountId}/sync`);
-      alert('Sync triggered in the background. It will automatically update SKUs shortly.');
-      setTimeout(() => {
-        fetchMeeshoAccounts();
-        fetchAllImportedSkus();
+      // Sync started — poll for status updates
+      let attempts = 0;
+      const poll = setInterval(async () => {
+        attempts++;
+        await fetchMeeshoAccounts();
+        await fetchAllImportedSkus();
+        if (attempts >= 6) clearInterval(poll); // stop after ~12s
       }, 2000);
     } catch (err) {
-      alert(err.response?.data?.error || 'Failed to trigger sync');
+      const errMsg = err.response?.data?.error || 'Failed to trigger sync';
+      setSyncError(errMsg);
     } finally {
       setSyncingAccountId(null);
     }
@@ -268,6 +274,39 @@ export default function MeeshoSync() {
       <Header title="Meesho Catalog Sync & Master SKU Hub" />
 
       <div className="p-8 space-y-8 max-w-[1600px] mx-auto">
+
+        {/* ── Local Sync Required Notice ────────────────────────────────────── */}
+        {syncError && (
+          <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 flex gap-3 items-start shadow-sm">
+            <Monitor size={20} className="text-amber-600 flex-shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <p className="text-sm font-bold text-amber-800 mb-1">Sync Must Be Done From Your Local Computer</p>
+              <p className="text-xs text-amber-700 leading-relaxed mb-2">{syncError}</p>
+              <div className="flex items-center gap-2 mt-2">
+                <Wifi size={12} className="text-amber-600" />
+                <span className="text-[11px] font-bold text-amber-700">Steps to sync:</span>
+              </div>
+              <ol className="text-[11px] text-amber-700 mt-1 ml-4 space-y-0.5 list-decimal">
+                <li>Make sure the backend is running on your computer (npm run dev in the backend folder)</li>
+                <li>Open <a href="http://localhost:5173/meesho-sync" className="underline font-bold" target="_blank" rel="noreferrer">http://localhost:5173/meesho-sync</a> in your browser</li>
+                <li>Click "Sync Account Listings" — your data saves to the shared cloud database automatically</li>
+              </ol>
+            </div>
+            <button onClick={() => setSyncError('')} className="text-amber-400 hover:text-amber-700 flex-shrink-0">
+              <X size={16} />
+            </button>
+          </div>
+        )}
+
+        {/* ── Cloud Sync Info Banner ────────────────────────────────────────── */}
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 flex gap-2.5 items-center shadow-sm">
+          <Monitor size={16} className="text-blue-500 flex-shrink-0" />
+          <p className="text-[11px] text-blue-700 font-medium leading-relaxed">
+            <strong>How syncing works:</strong> Meesho blocks automated logins from cloud servers. To sync your listings, 
+            open the app on your local computer (<span className="font-mono font-bold">http://localhost:5173</span>) and click 
+            "Sync Account Listings". Your SKUs will save directly to the shared database — no extra steps needed.
+          </p>
+        </div>
 
         {/* ── Connected Accounts ──────────────────────────────────────────── */}
         <div className="bg-white border border-slate-200 rounded-lg p-6 shadow-sm">
