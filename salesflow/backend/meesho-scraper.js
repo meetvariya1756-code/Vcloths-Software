@@ -66,7 +66,7 @@ async function loginToMeesho(browser, meeshoId, password, onStep) {
       await page.waitForSelector(sel, { timeout: 5000 });
       phoneInput = await page.$(sel);
       if (phoneInput) break;
-    } catch (_) {}
+    } catch (_) { }
   }
 
   if (!phoneInput) {
@@ -89,12 +89,12 @@ async function loginToMeesho(browser, meeshoId, password, onStep) {
     if (btnHandle) {
       continueBtn = btnHandle.asElement();
     }
-  } catch (_) {}
+  } catch (_) { }
 
   if (!continueBtn) {
     try {
       continueBtn = await page.$('button[type="submit"]');
-    } catch (_) {}
+    } catch (_) { }
   }
 
   if (continueBtn) {
@@ -118,7 +118,7 @@ async function loginToMeesho(browser, meeshoId, password, onStep) {
       await page.waitForSelector(sel, { timeout: 8000 });
       passwordInput = await page.$(sel);
       if (passwordInput) break;
-    } catch (_) {}
+    } catch (_) { }
   }
 
   if (!passwordInput) {
@@ -143,7 +143,7 @@ async function loginToMeesho(browser, meeshoId, password, onStep) {
     if (btnHandle) {
       loginBtn = btnHandle.asElement();
     }
-  } catch (_) {}
+  } catch (_) { }
 
   if (loginBtn) {
     await loginBtn.click();
@@ -154,7 +154,7 @@ async function loginToMeesho(browser, meeshoId, password, onStep) {
   onStep(2, 'Verifying login redirect...');
   try {
     await page.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 30000 });
-  } catch (_) {}
+  } catch (_) { }
 
   const currentUrl = page.url();
   if (currentUrl.includes('/login')) {
@@ -175,11 +175,11 @@ async function loginToMeesho(browser, meeshoId, password, onStep) {
 /**
  * Main scraper entry point.
  */
-async function scrapeMeeshoCatalog({ meeshoId, password, accountName, onStep = () => {} }) {
+async function scrapeMeeshoCatalog({ meeshoId, password, accountName, onStep = () => { } }) {
   // Detect simulation/mock mode early
-  const isMock = meeshoId.toLowerCase().startsWith('meesho_test') || 
-                 meeshoId.toLowerCase().includes('mock') || 
-                 password.toLowerCase().includes('test');
+  const isMock = meeshoId.toLowerCase().startsWith('meesho_test') ||
+    meeshoId.toLowerCase().includes('mock') ||
+    password.toLowerCase().includes('test');
 
   if (isMock) {
     onStep(1, 'Opening Meesho Supplier login page (Simulated)...');
@@ -250,7 +250,7 @@ async function scrapeMeeshoCatalog({ meeshoId, password, accountName, onStep = (
         interceptedHeaders = req.headers();
         try {
           interceptedBody = JSON.parse(req.postData() || '{}');
-        } catch (_) {}
+        } catch (_) { }
       }
     };
 
@@ -281,7 +281,7 @@ async function scrapeMeeshoCatalog({ meeshoId, password, accountName, onStep = (
         await gotItEl.click();
         await delay(1500);
       }
-    } catch (_) {}
+    } catch (_) { }
 
     if (!interceptedHeaders) {
       console.log('Waiting another 5 seconds for background API headers...');
@@ -402,14 +402,14 @@ async function scrapeMeeshoCatalog({ meeshoId, password, accountName, onStep = (
               },
               body: JSON.stringify(requestBody)
             })
-            .then(res => res.json())
-            .then(data => {
-              if (data && data.catalogs && data.catalogs[0]) {
-                return data.catalogs[0];
-              }
-              return null;
-            })
-            .catch(err => ({ error: err.message }));
+              .then(res => res.json())
+              .then(data => {
+                if (data && data.catalogs && data.catalogs[0]) {
+                  return data.catalogs[0];
+                }
+                return null;
+              })
+              .catch(err => ({ error: err.message }));
 
             batchPromises.push(promise);
           }
@@ -445,7 +445,7 @@ async function scrapeMeeshoCatalog({ meeshoId, password, accountName, onStep = (
               title: prod.name || catalogName,
               color_variant: null,
               size_variant: prod.variation || null,
-              
+
               // New details fields
               catalog_id: catalogId,
               catalog_name: catalogName,
