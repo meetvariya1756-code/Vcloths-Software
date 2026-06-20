@@ -104,8 +104,13 @@ export default function FlipkartSync() {
 
   const fetchAllImportedSkus = async () => {
     try {
-      const response = await api.get('/accounts/all/imported-skus');
-      setImportedSkus(response.data);
+      const response = await api.get('/accounts/all/imported-skus?limit=2000');
+      const data = response.data;
+      if (data && Array.isArray(data.skus)) {
+        setImportedSkus(data.skus);
+      } else if (Array.isArray(data)) {
+        setImportedSkus(data);
+      }
     } catch (e) { console.error(e); }
   };
 
