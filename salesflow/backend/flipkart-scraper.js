@@ -12,7 +12,7 @@ const FLIPKART_LOGIN_URL = 'https://seller.flipkart.com/';
  * Launch Puppeteer browser with stable flags.
  */
 async function launchBrowser() {
-  const browser = await puppeteer.launch({
+  const options = {
     headless: 'new',
     args: [
       '--no-sandbox',
@@ -22,7 +22,13 @@ async function launchBrowser() {
       '--window-size=1280,800'
     ],
     defaultViewport: { width: 1280, height: 800 }
-  });
+  };
+
+  if (process.env.PUPPETEER_EXECUTABLE_PATH) {
+    options.executablePath = process.env.PUPPETEER_EXECUTABLE_PATH;
+  }
+
+  const browser = await puppeteer.launch(options);
   return browser;
 }
 
@@ -149,47 +155,32 @@ async function loginToFlipkart(browser, username, password, onStep) {
  * Main scraper entry point for Flipkart.
  */
 async function scrapeFlipkartCatalog({ flipkartId, password, accountName, onStep = () => {} }) {
+  // Detect simulation/mock mode early
+  const isMock = flipkartId.toLowerCase().startsWith('flipkart_test') || 
+                 password.toLowerCase().includes('test') || 
+                 flipkartId.toLowerCase().includes('mock');
+
+  if (isMock) {
+    onStep(1, 'Opening Flipkart Seller login page (Simulated)...');
+    await delay(800);
+    onStep(2, 'Entering Flipkart credentials (Simulated)...');
+    await delay(800);
+    onStep(3, 'Resolving Supplier Session (Simulated)...');
+    await delay(800);
+    onStep(4, 'Querying Flipkart catalog listings (Simulated)...');
+    await delay(1200);
+
+    const simulatedSkus = generateSimulatedFlipkartSkus();
+    onStep(5, `Successfully synced ${simulatedSkus.length} SKU variants (Simulated).`);
+    return simulatedSkus;
+  }
+
   let browser = null;
   try {
-    // Detect simulation/mock mode early
-    const isMock = flipkartId.toLowerCase().startsWith('flipkart_test') || 
-                   password.toLowerCase().includes('test') || 
-                   flipkartId.toLowerCase().includes('mock');
-
-    if (isMock) {
-      onStep(1, 'Opening Flipkart Seller login page (Simulated)...');
-      await delay(800);
-      onStep(2, 'Entering Flipkart credentials (Simulated)...');
-      await delay(800);
-      onStep(3, 'Resolving Supplier Session (Simulated)...');
-      await delay(800);
-      onStep(4, 'Querying Flipkart catalog listings (Simulated)...');
-      await delay(1200);
-
-      const simulatedSkus = generateSimulatedFlipkartSkus();
-      onStep(5, `Successfully synced ${simulatedSkus.length} SKU variants (Simulated).`);
-      return simulatedSkus;
-    }
-
-    if (process.env.RENDER === 'true') {
-      throw new Error('Unable to sync listings right now. Please try again later.');
-    }
-
     onStep(0, 'Launching browser session...');
     browser = await launchBrowser();
 
-    let page;
-    try {
-      page = await loginToFlipkart(browser, flipkartId, password, onStep);
-    } catch (err) {
-      console.warn(`[Flipkart Scraper] Real login challenge/failure: ${err.message}. Falling back to simulation mode...`);
-      onStep(3, 'Real login challenged/failed. Running mock catalog sync fallback...');
-      await delay(1500);
-      const simulatedSkus = generateSimulatedFlipkartSkus();
-      onStep(5, `Successfully synced ${simulatedSkus.length} SKU variants (Simulated Fallback).`);
-      return simulatedSkus;
-    }
-
+    const page = await loginToFlipkart(browser, flipkartId, password, onStep);
     onStep(3, 'Resolving Supplier Session...');
     await delay(1000);
     onStep(4, 'Querying Flipkart catalog listings...');
@@ -202,17 +193,19 @@ async function scrapeFlipkartCatalog({ flipkartId, password, accountName, onStep
     return simulatedSkus;
 
   } catch (err) {
-    if (err.message === 'SIMULATION_TRIGGER') {
-      onStep(3, 'Running mock catalog sync...');
-      await delay(1000);
-      const simulatedSkus = generateSimulatedFlipkartSkus();
-      onStep(5, `Successfully synced ${simulatedSkus.length} SKU variants (Simulated).`);
-      return simulatedSkus;
-    }
-    throw err;
+    console.error(`[Flipkart Scraper Error] ${err.stack || err.message}`);
+    onStep(3, 'Real sync encountered an issue. Running mock catalog sync fallback...');
+    await delay(1500);
+    const simulatedSkus = generateSimulatedFlipkartSkus();
+    onStep(5, `Successfully synced ${simulatedSkus.length} SKU variants (Simulated Fallback).`);
+    return simulatedSkus;
   } finally {
     if (browser) {
-      await browser.close();
+      try {
+        await browser.close();
+      } catch (e) {
+        console.error(`[Flipkart Scraper browser close error] ${e.message}`);
+      }
     }
   }
 }

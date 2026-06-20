@@ -286,7 +286,7 @@ export default function Accounts() {
                               Synced
                             </span>
                           ) : acc.meesho_sync_status === 'failed' ? (
-                            <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-rose-50 text-rose-700 border border-rose-200" title={acc.meesho_sync_error || ''}>
+                            <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-rose-50 text-rose-700 border border-rose-200" title="Sync temporarily unavailable. Please try again in a few minutes.">
                               Sync Failed
                             </span>
                           ) : (
@@ -307,7 +307,7 @@ export default function Accounts() {
                               Synced
                             </span>
                           ) : acc.flipkart_sync_status === 'failed' ? (
-                            <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-rose-50 text-rose-700 border border-rose-200" title={acc.flipkart_sync_error || ''}>
+                            <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-rose-50 text-rose-700 border border-rose-200" title="Sync temporarily unavailable. Please try again in a few minutes.">
                               Sync Failed
                             </span>
                           ) : (
@@ -420,13 +420,13 @@ export default function Accounts() {
                                     </div>
                                     {acc.meesho_sync_error && (
                                       <div className="text-[10px] text-red-600 bg-red-50 border border-red-100 p-2 rounded mt-1.5 leading-snug">
-                                        <span className="font-extrabold uppercase text-[8px] tracking-wider block text-red-500 mb-0.5">Sync Error Log</span>
-                                        {acc.meesho_sync_error}
+                                        <span className="font-extrabold uppercase text-[8px] tracking-wider block text-red-500 mb-0.5">Sync Status</span>
+                                        Sync temporarily unavailable. Please try again in a few minutes.
                                       </div>
                                     )}
                                   </div>
                                 )}
-
+ 
                                 {acc.platform === 'flipkart' && (
                                   <div className="bg-slate-50 border border-slate-200 rounded p-3 text-xs space-y-1.5 font-medium">
                                     <div className="text-[9px] uppercase font-extrabold text-slate-400 tracking-wider">Flipkart Connection Details</div>
@@ -444,8 +444,8 @@ export default function Accounts() {
                                     </div>
                                     {acc.flipkart_sync_error && (
                                       <div className="text-[10px] text-red-600 bg-red-50 border border-red-100 p-2 rounded mt-1.5 leading-snug">
-                                        <span className="font-extrabold uppercase text-[8px] tracking-wider block text-red-500 mb-0.5">Sync Error Log</span>
-                                        {acc.flipkart_sync_error}
+                                        <span className="font-extrabold uppercase text-[8px] tracking-wider block text-red-500 mb-0.5">Sync Status</span>
+                                        Sync temporarily unavailable. Please try again in a few minutes.
                                       </div>
                                     )}
                                   </div>

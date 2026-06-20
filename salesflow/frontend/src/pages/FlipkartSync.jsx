@@ -260,7 +260,7 @@ export default function FlipkartSync() {
           <div className="bg-rose-50 border border-rose-200 rounded-lg p-4 flex gap-3 items-center shadow-sm">
             <X size={20} className="text-rose-600 flex-shrink-0" />
             <p className="text-sm font-semibold text-rose-800">
-              Unable to sync listings right now. Please try again later.
+              Sync temporarily unavailable. Please try again in a few minutes.
             </p>
             <button onClick={() => setSyncError('')} className="text-rose-400 hover:text-rose-700 ml-auto flex-shrink-0">
               <X size={16} />
@@ -314,9 +314,9 @@ export default function FlipkartSync() {
                                 ? 'bg-rose-50 text-rose-700 border border-rose-200'
                                 : 'bg-slate-100 text-slate-500 border border-slate-200'
                         }`}>
-                          {acc.flipkart_sync_status === 'syncing' ? 'Sync in progress...'
+                          {acc.flipkart_sync_status === 'syncing' ? 'Syncing listings...'
                             : acc.flipkart_sync_status === 'success' ? 'Listings synced successfully.'
-                              : acc.flipkart_sync_status === 'failed' ? 'Unable to sync listings right now. Please try again later.'
+                              : acc.flipkart_sync_status === 'failed' ? 'Sync temporarily unavailable. Please try again in a few minutes.'
                                 : 'Pending Credentials'}
                         </span>
                       </div>

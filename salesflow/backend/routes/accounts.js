@@ -25,98 +25,117 @@ router.get('/', async (req, res) => {
 // ── Background Auto-Sync Helper ──────────────────────────────────────────────
 async function triggerBackgroundSync(accountId) {
   setTimeout(async () => {
-    try {
-      const account = await prisma.account.findUnique({
-        where: { id: accountId }
-      });
+    let attempts = 0;
+    const maxAttempts = 3;
+    let success = false;
+    let lastError = null;
 
-      if (!account || account.platform !== 'meesho') return;
-      if (!account.meesho_username || !account.meesho_password) return;
+    while (attempts < maxAttempts && !success) {
+      attempts++;
+      try {
+        const account = await prisma.account.findUnique({
+          where: { id: accountId }
+        });
 
-      // Set status to syncing and clear any old error
-      await prisma.account.update({
-        where: { id: accountId },
-        data: {
-          meesho_sync_status: 'syncing',
-          meesho_sync_error: null
-        }
-      });
+        if (!account || account.platform !== 'meesho') return;
+        if (!account.meesho_username || !account.meesho_password) return;
 
-      console.log(`[Background Sync] Starting scraper for account "${account.name}" (ID: ${account.id})`);
-
-      const progressLog = [];
-      const onStep = (step, msg) => {
-        console.log(`[Background Sync][${account.name}] Step ${step}: ${msg}`);
-        progressLog.push({ step, msg });
-      };
-
-      const rawSkus = await scrapeMeeshoCatalog({
-        meeshoId: account.meesho_username,
-        password: account.meesho_password,
-        accountName: account.name,
-        onStep
-      });
-
-      if (!rawSkus || rawSkus.length === 0) {
-        throw new Error('No catalogs found in Meesho Supplier Panel. Verify active listings exist.');
-      }
-
-      // Upsert into database using account-scoped composite unique index
-      for (const sku of rawSkus) {
-        await prisma.importedSku.upsert({
-          where: {
-            account_id_marketplace_sku: {
-              account_id: account.id,
-              marketplace_sku: sku.marketplace_sku
-            }
-          },
-          update: {
-            title: sku.title || null,
-            color_variant: sku.color_variant || null,
-            size_variant: sku.size_variant || null,
-            catalog_id: sku.catalog_id || null,
-            catalog_name: sku.catalog_name || null,
-            style_id: sku.style_id || null,
-            image_url: sku.image_url || null,
-            price: sku.price || null,
-            inventory: sku.inventory !== null && sku.inventory !== undefined ? Number(sku.inventory) : null,
-            status: sku.status || null
-          },
-          create: {
-            account_id: account.id,
-            marketplace_sku: sku.marketplace_sku,
-            title: sku.title || null,
-            color_variant: sku.color_variant || null,
-            size_variant: sku.size_variant || null,
-            catalog_id: sku.catalog_id || null,
-            catalog_name: sku.catalog_name || null,
-            style_id: sku.style_id || null,
-            image_url: sku.image_url || null,
-            price: sku.price || null,
-            inventory: sku.inventory !== null && sku.inventory !== undefined ? Number(sku.inventory) : null,
-            status: sku.status || null
+        // Set status to syncing and clear any old error
+        await prisma.account.update({
+          where: { id: accountId },
+          data: {
+            meesho_sync_status: 'syncing',
+            meesho_sync_error: null
           }
         });
-      }
 
-      // Set status to success
-      await prisma.account.update({
-        where: { id: accountId },
-        data: {
-          meesho_sync_status: 'success',
-          meesho_last_sync: new Date(),
-          meesho_sync_error: null
+        console.log(`[Background Sync] Starting scraper for account "${account.name}" (ID: ${account.id}) - Attempt ${attempts}`);
+
+        const progressLog = [];
+        const onStep = (step, msg) => {
+          console.log(`[Background Sync][${account.name}] Step ${step}: ${msg}`);
+          progressLog.push({ step, msg });
+        };
+
+        const rawSkus = await scrapeMeeshoCatalog({
+          meeshoId: account.meesho_username,
+          password: account.meesho_password,
+          accountName: account.name,
+          onStep
+        });
+
+        if (!rawSkus || rawSkus.length === 0) {
+          throw new Error('No catalogs found in Meesho Supplier Panel. Verify active listings exist.');
         }
-      });
-      console.log(`[Background Sync] Completed successfully for "${account.name}"`);
 
-    } catch (err) {
-      console.error(`[Background Sync] Error for account ID ${accountId}:`, err);
+        // Upsert into database using account-scoped composite unique index
+        for (const sku of rawSkus) {
+          await prisma.importedSku.upsert({
+            where: {
+              account_id_marketplace_sku: {
+                account_id: account.id,
+                marketplace_sku: sku.marketplace_sku
+              }
+            },
+            update: {
+              title: sku.title || null,
+              color_variant: sku.color_variant || null,
+              size_variant: sku.size_variant || null,
+              catalog_id: sku.catalog_id || null,
+              catalog_name: sku.catalog_name || null,
+              style_id: sku.style_id || null,
+              image_url: sku.image_url || null,
+              price: sku.price || null,
+              inventory: sku.inventory !== null && sku.inventory !== undefined ? Number(sku.inventory) : null,
+              status: sku.status || null
+            },
+            create: {
+              account_id: account.id,
+              marketplace_sku: sku.marketplace_sku,
+              title: sku.title || null,
+              color_variant: sku.color_variant || null,
+              size_variant: sku.size_variant || null,
+              catalog_id: sku.catalog_id || null,
+              catalog_name: sku.catalog_name || null,
+              style_id: sku.style_id || null,
+              image_url: sku.image_url || null,
+              price: sku.price || null,
+              inventory: sku.inventory !== null && sku.inventory !== undefined ? Number(sku.inventory) : null,
+              status: sku.status || null
+            }
+          });
+        }
+
+        // Set status to success
+        await prisma.account.update({
+          where: { id: accountId },
+          data: {
+            meesho_sync_status: 'success',
+            meesho_last_sync: new Date(),
+            meesho_sync_error: null
+          }
+        });
+        console.log(`[Background Sync] Completed successfully for "${account.name}"`);
+        success = true;
+
+      } catch (err) {
+        lastError = err;
+        console.error(`[Background Sync Attempt ${attempts} Failed] for account ID ${accountId}:`, err.stack || err.message);
+        if (attempts < maxAttempts) {
+          console.log(`[Background Sync] Retrying in ${attempts * 2} seconds...`);
+          await new Promise(r => setTimeout(r, attempts * 2000));
+        }
+      }
+    }
+
+    if (!success) {
+      console.error(`[Background Sync Final Failure] for account ID ${accountId}:`, lastError ? (lastError.stack || lastError.message) : 'Unknown error');
+      // Set status to failed and store the user-friendly message
       await prisma.account.update({
         where: { id: accountId },
         data: {
           meesho_sync_status: 'failed',
-          meesho_sync_error: err.message
+          meesho_sync_error: 'Sync temporarily unavailable. Please try again in a few minutes.'
         }
       });
     }
@@ -126,98 +145,117 @@ async function triggerBackgroundSync(accountId) {
 // ── Flipkart Background Auto-Sync Helper ──────────────────────────────────────────
 async function triggerFlipkartBackgroundSync(accountId) {
   setTimeout(async () => {
-    try {
-      const account = await prisma.account.findUnique({
-        where: { id: accountId }
-      });
+    let attempts = 0;
+    const maxAttempts = 3;
+    let success = false;
+    let lastError = null;
 
-      if (!account || account.platform !== 'flipkart') return;
-      if (!account.flipkart_username || !account.flipkart_password) return;
+    while (attempts < maxAttempts && !success) {
+      attempts++;
+      try {
+        const account = await prisma.account.findUnique({
+          where: { id: accountId }
+        });
 
-      // Set status to syncing and clear any old error
-      await prisma.account.update({
-        where: { id: accountId },
-        data: {
-          flipkart_sync_status: 'syncing',
-          flipkart_sync_error: null
-        }
-      });
+        if (!account || account.platform !== 'flipkart') return;
+        if (!account.flipkart_username || !account.flipkart_password) return;
 
-      console.log(`[Background Sync] Starting Flipkart scraper for account "${account.name}" (ID: ${account.id})`);
-
-      const progressLog = [];
-      const onStep = (step, msg) => {
-        console.log(`[Background Sync][${account.name}] Step ${step}: ${msg}`);
-        progressLog.push({ step, msg });
-      };
-
-      const rawSkus = await scrapeFlipkartCatalog({
-        flipkartId: account.flipkart_username,
-        password: account.flipkart_password,
-        accountName: account.name,
-        onStep
-      });
-
-      if (!rawSkus || rawSkus.length === 0) {
-        throw new Error('No catalogs found in Flipkart Seller Panel. Verify active listings exist.');
-      }
-
-      // Upsert into database using account-scoped composite unique index
-      for (const sku of rawSkus) {
-        await prisma.importedSku.upsert({
-          where: {
-            account_id_marketplace_sku: {
-              account_id: account.id,
-              marketplace_sku: sku.marketplace_sku
-            }
-          },
-          update: {
-            title: sku.title || null,
-            color_variant: sku.color_variant || null,
-            size_variant: sku.size_variant || null,
-            catalog_id: sku.catalog_id || null,
-            catalog_name: sku.catalog_name || null,
-            style_id: sku.style_id || null,
-            image_url: sku.image_url || null,
-            price: sku.price || null,
-            inventory: sku.inventory !== null && sku.inventory !== undefined ? Number(sku.inventory) : null,
-            status: sku.status || null
-          },
-          create: {
-            account_id: account.id,
-            marketplace_sku: sku.marketplace_sku,
-            title: sku.title || null,
-            color_variant: sku.color_variant || null,
-            size_variant: sku.size_variant || null,
-            catalog_id: sku.catalog_id || null,
-            catalog_name: sku.catalog_name || null,
-            style_id: sku.style_id || null,
-            image_url: sku.image_url || null,
-            price: sku.price || null,
-            inventory: sku.inventory !== null && sku.inventory !== undefined ? Number(sku.inventory) : null,
-            status: sku.status || null
+        // Set status to syncing and clear any old error
+        await prisma.account.update({
+          where: { id: accountId },
+          data: {
+            flipkart_sync_status: 'syncing',
+            flipkart_sync_error: null
           }
         });
-      }
 
-      // Set status to success
-      await prisma.account.update({
-        where: { id: accountId },
-        data: {
-          flipkart_sync_status: 'success',
-          flipkart_last_sync: new Date(),
-          flipkart_sync_error: null
+        console.log(`[Background Sync] Starting Flipkart scraper for account "${account.name}" (ID: ${account.id}) - Attempt ${attempts}`);
+
+        const progressLog = [];
+        const onStep = (step, msg) => {
+          console.log(`[Background Sync][${account.name}] Step ${step}: ${msg}`);
+          progressLog.push({ step, msg });
+        };
+
+        const rawSkus = await scrapeFlipkartCatalog({
+          flipkartId: account.flipkart_username,
+          password: account.flipkart_password,
+          accountName: account.name,
+          onStep
+        });
+
+        if (!rawSkus || rawSkus.length === 0) {
+          throw new Error('No catalogs found in Flipkart Seller Panel. Verify active listings exist.');
         }
-      });
-      console.log(`[Background Sync] Flipkart completed successfully for "${account.name}"`);
 
-    } catch (err) {
-      console.error(`[Background Sync] Flipkart Error for account ID ${accountId}:`, err);
+        // Upsert into database using account-scoped composite unique index
+        for (const sku of rawSkus) {
+          await prisma.importedSku.upsert({
+            where: {
+              account_id_marketplace_sku: {
+                account_id: account.id,
+                marketplace_sku: sku.marketplace_sku
+              }
+            },
+            update: {
+              title: sku.title || null,
+              color_variant: sku.color_variant || null,
+              size_variant: sku.size_variant || null,
+              catalog_id: sku.catalog_id || null,
+              catalog_name: sku.catalog_name || null,
+              style_id: sku.style_id || null,
+              image_url: sku.image_url || null,
+              price: sku.price || null,
+              inventory: sku.inventory !== null && sku.inventory !== undefined ? Number(sku.inventory) : null,
+              status: sku.status || null
+            },
+            create: {
+              account_id: account.id,
+              marketplace_sku: sku.marketplace_sku,
+              title: sku.title || null,
+              color_variant: sku.color_variant || null,
+              size_variant: sku.size_variant || null,
+              catalog_id: sku.catalog_id || null,
+              catalog_name: sku.catalog_name || null,
+              style_id: sku.style_id || null,
+              image_url: sku.image_url || null,
+              price: sku.price || null,
+              inventory: sku.inventory !== null && sku.inventory !== undefined ? Number(sku.inventory) : null,
+              status: sku.status || null
+            }
+          });
+        }
+
+        // Set status to success
+        await prisma.account.update({
+          where: { id: accountId },
+          data: {
+            flipkart_sync_status: 'success',
+            flipkart_last_sync: new Date(),
+            flipkart_sync_error: null
+          }
+        });
+        console.log(`[Background Sync] Flipkart completed successfully for "${account.name}"`);
+        success = true;
+
+      } catch (err) {
+        lastError = err;
+        console.error(`[Background Sync Flipkart Attempt ${attempts} Failed] for account ID ${accountId}:`, err.stack || err.message);
+        if (attempts < maxAttempts) {
+          console.log(`[Background Sync Flipkart] Retrying in ${attempts * 2} seconds...`);
+          await new Promise(r => setTimeout(r, attempts * 2000));
+        }
+      }
+    }
+
+    if (!success) {
+      console.error(`[Background Sync Flipkart Final Failure] for account ID ${accountId}:`, lastError ? (lastError.stack || lastError.message) : 'Unknown error');
+      // Set status to failed and store the user-friendly message
       await prisma.account.update({
         where: { id: accountId },
         data: {
           flipkart_sync_status: 'failed',
-          flipkart_sync_error: err.message
+          flipkart_sync_error: 'Sync temporarily unavailable. Please try again in a few minutes.'
         }
       });
     }
@@ -263,7 +301,7 @@ const syncAllAccounts = async () => {
 // Reset stuck syncing statuses on startup
 const resetStuckSyncing = async () => {
   try {
-    const cloudMsg = 'Unable to sync listings right now. Please try again later.';
+    const cloudMsg = 'Sync temporarily unavailable. Please try again in a few minutes.';
 
     const meeshoResult = await prisma.account.updateMany({
       where: { meesho_sync_status: 'syncing' },
@@ -289,21 +327,15 @@ const resetStuckSyncing = async () => {
 resetStuckSyncing();
 
 // Auto-sync accounts 2 minutes after startup, then every 6 hours
-// SKIPPED on cloud environments — marketplace scraping requires a local machine with a
-// residential IP to bypass Cloudflare/Akamai bot protection on Flipkart and Meesho.
-if (!isCloudEnv()) {
-  setTimeout(() => {
-    console.log('[Auto-Sync Cron] Running initial startup synchronization...');
-    syncAllAccounts();
-  }, 2 * 60 * 1000);
+setTimeout(() => {
+  console.log('[Auto-Sync Cron] Running initial startup synchronization...');
+  syncAllAccounts();
+}, 2 * 60 * 1000);
 
-  setInterval(() => {
-    console.log('[Auto-Sync Cron] Running scheduled synchronization...');
-    syncAllAccounts();
-  }, 6 * 60 * 60 * 1000);
-} else {
-  console.log('[Auto-Sync Cron] Cloud environment detected — auto-sync disabled. Use local machine to sync.');
-}
+setInterval(() => {
+  console.log('[Auto-Sync Cron] Running scheduled synchronization...');
+  syncAllAccounts();
+}, 6 * 60 * 60 * 1000);
 
 // POST new account
 router.post('/', async (req, res) => {
@@ -626,11 +658,7 @@ router.post('/:id/sync', async (req, res) => {
       return res.status(404).json({ error: 'Account not found' });
     }
 
-    if (isCloudEnv()) {
-      return res.status(400).json({
-        error: 'Unable to sync listings right now. Please try again later.'
-      });
-    }
+
 
     const plat = account.platform.toLowerCase();
     if (plat === 'meesho') {
