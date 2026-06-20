@@ -36,8 +36,12 @@ async function loginToFlipkart(browser, username, password, onStep) {
   );
 
   onStep(1, 'Opening Flipkart Seller login page...');
-  await page.goto(FLIPKART_LOGIN_URL, { waitUntil: 'networkidle2', timeout: 30000 });
-  await delay(1000);
+  try {
+    await page.goto(FLIPKART_LOGIN_URL, { waitUntil: 'domcontentloaded', timeout: 45000 });
+  } catch (err) {
+    console.warn(`[Flipkart Scraper] page.goto login warning (proceeding): ${err.message}`);
+  }
+  await delay(1200);
 
   // Check if we should trigger simulation immediately
   if (username.toLowerCase().startsWith('flipkart_test') || username.toLowerCase().includes('mock') || password.includes('test')) {

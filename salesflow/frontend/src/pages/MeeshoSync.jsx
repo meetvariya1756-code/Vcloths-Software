@@ -268,6 +268,7 @@ export default function MeeshoSync() {
   });
 
   const selectedProduct = products.find(p => p.id.toString() === bulkProductId);
+  const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
 
   return (
     <div className="flex-1 bg-slate-50 min-h-screen pb-12">
@@ -299,14 +300,16 @@ export default function MeeshoSync() {
         )}
 
         {/* ── Cloud Sync Info Banner ────────────────────────────────────────── */}
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 flex gap-2.5 items-center shadow-sm">
-          <Monitor size={16} className="text-blue-500 flex-shrink-0" />
-          <p className="text-[11px] text-blue-700 font-medium leading-relaxed">
-            <strong>How syncing works:</strong> Meesho blocks automated logins from cloud servers. To sync your listings, 
-            open the app on your local computer (<span className="font-mono font-bold">http://localhost:5173</span>) and click 
-            "Sync Account Listings". Your SKUs will save directly to the shared database — no extra steps needed.
-          </p>
-        </div>
+        {!isLocalhost && (
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 flex gap-2.5 items-center shadow-sm">
+            <Monitor size={16} className="text-blue-500 flex-shrink-0" />
+            <p className="text-[11px] text-blue-700 font-medium leading-relaxed">
+              <strong>How syncing works:</strong> Meesho blocks automated logins from cloud servers. To sync your listings, 
+              open the app on your local computer (<span className="font-mono font-bold">http://localhost:5173</span>) and click 
+              "Sync Account Listings". Your SKUs will save directly to the shared database — no extra steps needed.
+            </p>
+          </div>
+        )}
 
         {/* ── Connected Accounts ──────────────────────────────────────────── */}
         <div className="bg-white border border-slate-200 rounded-lg p-6 shadow-sm">
