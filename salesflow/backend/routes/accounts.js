@@ -256,6 +256,32 @@ const syncAllAccounts = async () => {
   }
 };
 
+// Reset stuck syncing statuses on startup
+const resetStuckSyncing = async () => {
+  try {
+    const meeshoResult = await prisma.account.updateMany({
+      where: { meesho_sync_status: 'syncing' },
+      data: {
+        meesho_sync_status: 'failed',
+        meesho_sync_error: 'Sync timed out or aborted due to server restart. Please try triggering it again.'
+      }
+    });
+    const flipkartResult = await prisma.account.updateMany({
+      where: { flipkart_sync_status: 'syncing' },
+      data: {
+        flipkart_sync_status: 'failed',
+        flipkart_sync_error: 'Sync timed out or aborted due to server restart. Please try triggering it again.'
+      }
+    });
+    if (meeshoResult.count > 0 || flipkartResult.count > 0) {
+      console.log(`[Startup Cleanup] Reset ${meeshoResult.count} stuck Meesho and ${flipkartResult.count} stuck Flipkart sync tasks.`);
+    }
+  } catch (err) {
+    console.error('[Startup Cleanup] Error resetting stuck syncing statuses:', err);
+  }
+};
+resetStuckSyncing();
+
 // Auto-sync accounts 2 minutes after startup, then every 6 hours
 setTimeout(() => {
   console.log('[Auto-Sync Cron] Running initial startup synchronization...');
