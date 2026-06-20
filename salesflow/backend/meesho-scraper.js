@@ -362,7 +362,7 @@ async function scrapeMeeshoCatalog({ meeshoId, password, accountName, onStep = (
       // Run parallel batch requests directly in browser context (concurrency = 5)
       const catalogsData = await page.evaluate(async (headers, endpoint, count, bodyTemplate) => {
         const results = [];
-        const concurrency = 5;
+        const concurrency = 3;
 
         for (let i = 0; i < count; i += concurrency) {
           const batchPromises = [];
@@ -400,8 +400,8 @@ async function scrapeMeeshoCatalog({ meeshoId, password, accountName, onStep = (
           const batchResults = await Promise.all(batchPromises);
           results.push(...batchResults.filter(Boolean));
 
-          // 50ms safety delay between batches
-          await new Promise(r => setTimeout(r, 50));
+          // 400ms safety delay between batches to prevent rate-limiting / IP block pages
+          await new Promise(r => setTimeout(r, 400));
         }
 
         return results;
