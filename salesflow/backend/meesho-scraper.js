@@ -584,19 +584,6 @@ function generateSimulatedMeeshoSkus() {
       status: 'paused'
     },
     {
-      marketplace_sku: 'MEESH-BAD-SKU-99',
-      title: 'Vcloths Discontinued Casual Shorts (Pack of 1) [Deactivated]',
-      color_variant: 'Assorted',
-      size_variant: 'Free',
-      catalog_id: 'C-MEESH-BAD-09',
-      catalog_name: 'Vcloths Legacy Shorts Catalog',
-      style_id: 'MS-BAD-01',
-      image_url: 'https://images.unsplash.com/photo-1591195853828-11db59a44f6b?w=200&auto=format&fit=crop',
-      price: 8500,
-      inventory: 0,
-      status: 'blocked'
-    },
-    {
       marketplace_sku: 'MS-UNMAPPED-SH-PC1',
       title: 'Meesho Exclusive Cotton Shorts Pack of 1',
       color_variant: 'Assorted',
