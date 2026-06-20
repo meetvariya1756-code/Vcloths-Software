@@ -263,9 +263,7 @@ const syncAllAccounts = async () => {
 // Reset stuck syncing statuses on startup
 const resetStuckSyncing = async () => {
   try {
-    const cloudMsg = isCloudEnv()
-      ? 'Server restarted. Sync must be triggered from your local machine (http://localhost:5173) — cloud scraping is blocked by marketplace security policies.'
-      : 'Sync timed out or aborted due to server restart. Please try triggering it again.';
+    const cloudMsg = 'Unable to sync listings right now. Please try again later.';
 
     const meeshoResult = await prisma.account.updateMany({
       where: { meesho_sync_status: 'syncing' },
@@ -628,11 +626,9 @@ router.post('/:id/sync', async (req, res) => {
       return res.status(404).json({ error: 'Account not found' });
     }
 
-    // Cloud environments cannot run Puppeteer scraping — inform user to use local machine
     if (isCloudEnv()) {
-      const platformName = account.platform.charAt(0).toUpperCase() + account.platform.slice(1);
       return res.status(400).json({
-        error: `Cannot sync from the cloud server. ${platformName} blocks automated logins from cloud IP addresses. Please open http://localhost:5173 on your computer and trigger the sync from there. Your data will automatically sync to the shared database.`
+        error: 'Unable to sync listings right now. Please try again later.'
       });
     }
 

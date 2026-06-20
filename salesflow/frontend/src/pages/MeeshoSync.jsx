@@ -268,7 +268,6 @@ export default function MeeshoSync() {
   });
 
   const selectedProduct = products.find(p => p.id.toString() === bulkProductId);
-  const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
 
   return (
     <div className="flex-1 bg-slate-50 min-h-screen pb-12">
@@ -276,38 +275,16 @@ export default function MeeshoSync() {
 
       <div className="p-8 space-y-8 max-w-[1600px] mx-auto">
 
-        {/* ── Local Sync Required Notice ────────────────────────────────────── */}
+        {/* ── Sync Error Notice ────────────────────────────────────── */}
         {syncError && (
-          <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 flex gap-3 items-start shadow-sm">
-            <Monitor size={20} className="text-amber-600 flex-shrink-0 mt-0.5" />
-            <div className="flex-1">
-              <p className="text-sm font-bold text-amber-800 mb-1">Sync Must Be Done From Your Local Computer</p>
-              <p className="text-xs text-amber-700 leading-relaxed mb-2">{syncError}</p>
-              <div className="flex items-center gap-2 mt-2">
-                <Wifi size={12} className="text-amber-600" />
-                <span className="text-[11px] font-bold text-amber-700">Steps to sync:</span>
-              </div>
-              <ol className="text-[11px] text-amber-700 mt-1 ml-4 space-y-0.5 list-decimal">
-                <li>Make sure the backend is running on your computer (npm run dev in the backend folder)</li>
-                <li>Open <a href="http://localhost:5173/meesho-sync" className="underline font-bold" target="_blank" rel="noreferrer">http://localhost:5173/meesho-sync</a> in your browser</li>
-                <li>Click "Sync Account Listings" — your data saves to the shared cloud database automatically</li>
-              </ol>
-            </div>
-            <button onClick={() => setSyncError('')} className="text-amber-400 hover:text-amber-700 flex-shrink-0">
+          <div className="bg-rose-50 border border-rose-200 rounded-lg p-4 flex gap-3 items-center shadow-sm">
+            <X size={20} className="text-rose-600 flex-shrink-0" />
+            <p className="text-sm font-semibold text-rose-800">
+              Unable to sync listings right now. Please try again later.
+            </p>
+            <button onClick={() => setSyncError('')} className="text-rose-400 hover:text-rose-700 ml-auto flex-shrink-0">
               <X size={16} />
             </button>
-          </div>
-        )}
-
-        {/* ── Cloud Sync Info Banner ────────────────────────────────────────── */}
-        {!isLocalhost && (
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 flex gap-2.5 items-center shadow-sm">
-            <Monitor size={16} className="text-blue-500 flex-shrink-0" />
-            <p className="text-[11px] text-blue-700 font-medium leading-relaxed">
-              <strong>How syncing works:</strong> Meesho blocks automated logins from cloud servers. To sync your listings, 
-              open the app on your local computer (<span className="font-mono font-bold">http://localhost:5173</span>) and click 
-              "Sync Account Listings". Your SKUs will save directly to the shared database — no extra steps needed.
-            </p>
           </div>
         )}
 
@@ -357,9 +334,9 @@ export default function MeeshoSync() {
                                 ? 'bg-rose-50 text-rose-700 border border-rose-200'
                                 : 'bg-slate-100 text-slate-500 border border-slate-200'
                         }`}>
-                          {acc.meesho_sync_status === 'syncing' ? 'Syncing'
-                            : acc.meesho_sync_status === 'success' ? 'Synced'
-                              : acc.meesho_sync_status === 'failed' ? 'Sync Failed'
+                          {acc.meesho_sync_status === 'syncing' ? 'Sync in progress...'
+                            : acc.meesho_sync_status === 'success' ? 'Listings synced successfully.'
+                              : acc.meesho_sync_status === 'failed' ? 'Unable to sync listings right now. Please try again later.'
                                 : 'Pending Credentials'}
                         </span>
                       </div>
@@ -377,11 +354,6 @@ export default function MeeshoSync() {
                           <span className="text-slate-700">{acc.meesho_last_sync ? new Date(acc.meesho_last_sync).toLocaleString() : 'Never'}</span>
                         </div>
                       </div>
-                      {acc.meesho_sync_status === 'failed' && acc.meesho_sync_error && (
-                        <div className="mt-3 p-2 bg-rose-50 border border-rose-100 rounded text-[10px] font-semibold text-rose-700 leading-relaxed max-h-[80px] overflow-y-auto" title={acc.meesho_sync_error}>
-                          {acc.meesho_sync_error}
-                        </div>
-                      )}
                     </div>
                     <button
                       onClick={() => handleManualSync(acc.id)}
