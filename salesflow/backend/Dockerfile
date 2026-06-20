@@ -1,13 +1,15 @@
 FROM node:18-alpine
 
-# Install dependencies for Puppeteer/Chromium (if needed)
+# Install dependencies for Puppeteer/Chromium and Prisma
 RUN apk add --no-cache \
     chromium \
     nss \
     freetype \
     harfbuzz \
     ca-certificates \
-    ttf-freefont
+    ttf-freefont \
+    openssl \
+    libc6-compat
 
 # Skip Puppeteer's bundled Chromium download - use system Chromium
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
