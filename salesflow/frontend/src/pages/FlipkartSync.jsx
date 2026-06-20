@@ -274,7 +274,7 @@ export default function FlipkartSync() {
             <div className="p-6 bg-slate-50 border border-dashed border-slate-200 rounded text-center">
               <p className="text-xs text-slate-500 font-medium">No Flipkart accounts configured yet.</p>
               <p className="text-[11px] text-slate-400 mt-1">
-                Please visit the <a href="/accounts" className="text-orange-605 underline font-bold">Accounts</a> page to add a Flipkart account.
+                Please visit the <a href="/accounts" className="text-orange-600 underline font-bold">Accounts</a> page to add a Flipkart account.
               </p>
             </div>
           ) : (
@@ -315,6 +315,11 @@ export default function FlipkartSync() {
                           <span className="text-slate-700">{acc.flipkart_last_sync ? new Date(acc.flipkart_last_sync).toLocaleString() : 'Never'}</span>
                         </div>
                       </div>
+                      {acc.flipkart_sync_status === 'failed' && acc.flipkart_sync_error && (
+                        <div className="mt-3 p-2 bg-rose-50 border border-rose-100 rounded text-[10px] font-semibold text-rose-700 leading-relaxed max-h-[80px] overflow-y-auto" title={acc.flipkart_sync_error}>
+                          {acc.flipkart_sync_error}
+                        </div>
+                      )}
                     </div>
                     <button
                       onClick={() => handleManualSync(acc.id)}

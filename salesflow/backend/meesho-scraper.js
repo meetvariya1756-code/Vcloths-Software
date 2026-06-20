@@ -172,6 +172,31 @@ async function loginToMeesho(browser, meeshoId, password, onStep) {
  * Main scraper entry point.
  */
 async function scrapeMeeshoCatalog({ meeshoId, password, accountName, onStep = () => {} }) {
+  // Detect simulation/mock mode early
+  const isMock = meeshoId.toLowerCase().startsWith('meesho_test') || 
+                 meeshoId.toLowerCase().includes('mock') || 
+                 password.toLowerCase().includes('test');
+
+  if (isMock) {
+    onStep(1, 'Opening Meesho Supplier login page (Simulated)...');
+    await delay(800);
+    onStep(2, 'Entering Meesho credentials (Simulated)...');
+    await delay(800);
+    onStep(3, 'Resolving Supplier Session (Simulated)...');
+    await delay(800);
+    onStep(4, 'Querying Meesho catalog listings (Simulated)...');
+    await delay(1200);
+
+    const simulatedSkus = generateSimulatedMeeshoSkus();
+    onStep(5, `Successfully synced ${simulatedSkus.length} SKU variants (Simulated).`);
+    return simulatedSkus;
+  }
+
+  // Fail-fast if running in Render cloud environment to prevent resource exhaustion and browser blocks
+  if (process.env.RENDER === 'true') {
+    throw new Error('Cloud synchronization is blocked by Meesho security policies. Please use the Local Sync tool on your computer (http://localhost:5173) to synchronize listings.');
+  }
+
   let browser = null;
   let page = null;
 
@@ -430,6 +455,170 @@ async function scrapeMeeshoCatalog({ meeshoId, password, accountName, onStep = (
 
 function delay(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+/**
+ * Generate mock Meesho SKUs for simulation.
+ */
+function generateSimulatedMeeshoSkus() {
+  return [
+    {
+      marketplace_sku: 'MEESH-SHPC-1',
+      title: 'Vcloths Regular Fit Men Shorts (Pack of 1)',
+      color_variant: 'Assorted',
+      size_variant: 'Free',
+      catalog_id: 'C-MEESH-SHORTS-01',
+      catalog_name: 'Vcloths Men Regular Shorts Collection',
+      style_id: 'MS-SH-01',
+      image_url: 'https://images.unsplash.com/photo-1591195853828-11db59a44f6b?w=200&auto=format&fit=crop',
+      price: 12500, // in paisa (Rs 125)
+      inventory: 150,
+      status: 'active'
+    },
+    {
+      marketplace_sku: 'MEESH-SHPC-2',
+      title: 'Vcloths Regular Fit Men Shorts (Pack of 2)',
+      color_variant: 'Assorted',
+      size_variant: 'Free',
+      catalog_id: 'C-MEESH-SHORTS-01',
+      catalog_name: 'Vcloths Men Regular Shorts Collection',
+      style_id: 'MS-SH-02',
+      image_url: 'https://images.unsplash.com/photo-1591195853828-11db59a44f6b?w=200&auto=format&fit=crop',
+      price: 23500, // Rs 235
+      inventory: 95,
+      status: 'active'
+    },
+    {
+      marketplace_sku: 'MEESH-SHPC-3',
+      title: 'Vcloths Regular Fit Men Shorts (Pack of 3)',
+      color_variant: 'Assorted',
+      size_variant: 'Free',
+      catalog_id: 'C-MEESH-SHORTS-01',
+      catalog_name: 'Vcloths Men Regular Shorts Collection',
+      style_id: 'MS-SH-03',
+      image_url: 'https://images.unsplash.com/photo-1591195853828-11db59a44f6b?w=200&auto=format&fit=crop',
+      price: 34500, // Rs 345
+      inventory: 74,
+      status: 'active'
+    },
+    {
+      marketplace_sku: 'MEESH-SHPC-4',
+      title: 'Vcloths Regular Fit Men Shorts (Pack of 4)',
+      color_variant: 'Assorted',
+      size_variant: 'Free',
+      catalog_id: 'C-MEESH-SHORTS-01',
+      catalog_name: 'Vcloths Men Regular Shorts Collection',
+      style_id: 'MS-SH-04',
+      image_url: 'https://images.unsplash.com/photo-1591195853828-11db59a44f6b?w=200&auto=format&fit=crop',
+      price: 43500, // Rs 435
+      inventory: 48,
+      status: 'active'
+    },
+    {
+      marketplace_sku: 'MEESH-CORD-SH-P2',
+      title: "Vcloths Men's Premium Cord Shorts (Pack of 2)",
+      color_variant: 'Assorted',
+      size_variant: 'Free',
+      catalog_id: 'C-MEESH-CORD-02',
+      catalog_name: 'Vcloths Premium Corduroy Shorts Series',
+      style_id: 'MS-CORD-02',
+      image_url: 'https://images.unsplash.com/photo-1617137968427-85924c800a22?w=200&auto=format&fit=crop',
+      price: 31500,
+      inventory: 50,
+      status: 'active'
+    },
+    {
+      marketplace_sku: 'MEESH-BARFI-PC-1',
+      title: 'Vcloths Kids Cotton Barfi Shorts (Pack of 1)',
+      color_variant: 'Assorted',
+      size_variant: 'Free',
+      catalog_id: 'C-MEESH-BARFI-03',
+      catalog_name: 'Vcloths Kids Printed Barfi Shorts',
+      style_id: 'MS-BARFI-01',
+      image_url: 'https://images.unsplash.com/photo-1519457431-44ccd64a579b?w=200&auto=format&fit=crop',
+      price: 10500,
+      inventory: 160,
+      status: 'active'
+    },
+    {
+      marketplace_sku: 'MEESH-BARFI-PC-2',
+      title: 'Vcloths Kids Cotton Barfi Shorts (Pack of 2)',
+      color_variant: 'Assorted',
+      size_variant: 'Free',
+      catalog_id: 'C-MEESH-BARFI-03',
+      catalog_name: 'Vcloths Kids Printed Barfi Shorts',
+      style_id: 'MS-BARFI-02',
+      image_url: 'https://images.unsplash.com/photo-1519457431-44ccd64a579b?w=200&auto=format&fit=crop',
+      price: 19500,
+      inventory: 110,
+      status: 'active'
+    },
+    {
+      marketplace_sku: 'MEESH-STRIP-SH-P2',
+      title: "Vcloths Men's Stripe Shorts (Pack of 2) [Paused]",
+      color_variant: 'Assorted',
+      size_variant: 'Free',
+      catalog_id: 'C-MEESH-STRIP-04',
+      catalog_name: 'Vcloths Summer Stripe Shorts',
+      style_id: 'MS-STRIP-02',
+      image_url: 'https://images.unsplash.com/photo-1591195853828-11db59a44f6b?w=200&auto=format&fit=crop',
+      price: 25500,
+      inventory: 0,
+      status: 'paused'
+    },
+    {
+      marketplace_sku: 'MEESH-BAD-SKU-99',
+      title: 'Vcloths Discontinued Casual Shorts (Pack of 1) [Deactivated]',
+      color_variant: 'Assorted',
+      size_variant: 'Free',
+      catalog_id: 'C-MEESH-BAD-09',
+      catalog_name: 'Vcloths Legacy Shorts Catalog',
+      style_id: 'MS-BAD-01',
+      image_url: 'https://images.unsplash.com/photo-1591195853828-11db59a44f6b?w=200&auto=format&fit=crop',
+      price: 8500,
+      inventory: 0,
+      status: 'blocked'
+    },
+    {
+      marketplace_sku: 'MS-UNMAPPED-SH-PC1',
+      title: 'Meesho Exclusive Cotton Shorts Pack of 1',
+      color_variant: 'Assorted',
+      size_variant: 'Free',
+      catalog_id: 'C-MS-NEW-99',
+      catalog_name: 'Meesho Exclusive New Releases',
+      style_id: 'MS-NEW-SH1',
+      image_url: 'https://images.unsplash.com/photo-1591195853828-11db59a44f6b?w=200&auto=format&fit=crop',
+      price: 14500,
+      inventory: 250,
+      status: 'active'
+    },
+    {
+      marketplace_sku: 'MS-UNMAPPED-CORD-PC2',
+      title: 'Premium Corduroy Shorts Pack of 2',
+      color_variant: 'Assorted',
+      size_variant: 'Free',
+      catalog_id: 'C-MS-NEW-99',
+      catalog_name: 'Meesho Exclusive New Releases',
+      style_id: 'MS-NEW-CORD2',
+      image_url: 'https://images.unsplash.com/photo-1617137968427-85924c800a22?w=200&auto=format&fit=crop',
+      price: 33500,
+      inventory: 140,
+      status: 'active'
+    },
+    {
+      marketplace_sku: 'MS-NEW-BARFI-P3',
+      title: 'Kids Cotton Barfi Shorts Pack of 3',
+      color_variant: 'Assorted',
+      size_variant: 'Free',
+      catalog_id: 'C-MS-NEW-99',
+      catalog_name: 'Meesho Exclusive New Releases',
+      style_id: 'MS-NEW-BARFI3',
+      image_url: 'https://images.unsplash.com/photo-1519457431-44ccd64a579b?w=200&auto=format&fit=crop',
+      price: 27500,
+      inventory: 180,
+      status: 'active'
+    }
+  ];
 }
 
 module.exports = { scrapeMeeshoCatalog };

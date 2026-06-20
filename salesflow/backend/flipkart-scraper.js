@@ -167,6 +167,10 @@ async function scrapeFlipkartCatalog({ flipkartId, password, accountName, onStep
       return simulatedSkus;
     }
 
+    if (process.env.RENDER === 'true') {
+      throw new Error('Cloud synchronization is blocked by Flipkart security policies. Please use the Local Sync tool on your computer (http://localhost:5173) to synchronize listings.');
+    }
+
     onStep(0, 'Launching browser session...');
     browser = await launchBrowser();
 

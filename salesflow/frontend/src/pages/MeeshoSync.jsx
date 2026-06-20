@@ -335,6 +335,11 @@ export default function MeeshoSync() {
                           <span className="text-slate-700">{acc.meesho_last_sync ? new Date(acc.meesho_last_sync).toLocaleString() : 'Never'}</span>
                         </div>
                       </div>
+                      {acc.meesho_sync_status === 'failed' && acc.meesho_sync_error && (
+                        <div className="mt-3 p-2 bg-rose-50 border border-rose-100 rounded text-[10px] font-semibold text-rose-700 leading-relaxed max-h-[80px] overflow-y-auto" title={acc.meesho_sync_error}>
+                          {acc.meesho_sync_error}
+                        </div>
+                      )}
                     </div>
                     <button
                       onClick={() => handleManualSync(acc.id)}
