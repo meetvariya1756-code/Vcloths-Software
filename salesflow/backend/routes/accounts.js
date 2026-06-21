@@ -435,6 +435,16 @@ router.put('/:id', async (req, res) => {
     res.json(account);
   } catch (err) {
     console.error(err);
+    try {
+      await prisma.account.update({
+        where: { id: parseInt(id) },
+        data: {
+          meesho_sync_error: `DB_DEBUG_PUT_ERROR: ${err.stack || err.message}`
+        }
+      });
+    } catch (e) {
+      console.error('Failed to write debug error to DB:', e);
+    }
     res.status(500).json({ error: 'Failed to update account' });
   }
 });
