@@ -345,22 +345,43 @@ router.post('/', async (req, res) => {
   }
 
   try {
-    const isMeesho = platform.toLowerCase() === 'meesho';
-    const isFlipkart = platform.toLowerCase() === 'flipkart';
+    const isMeesho = String(platform).toLowerCase() === 'meesho';
+    const isFlipkart = String(platform).toLowerCase() === 'flipkart';
+
+    let parsedIsActive = true;
+    if (is_active !== undefined) {
+      if (typeof is_active === 'boolean') {
+        parsedIsActive = is_active;
+      } else if (typeof is_active === 'string') {
+        parsedIsActive = is_active.toLowerCase() === 'true' || is_active === '1';
+      } else if (typeof is_active === 'number') {
+        parsedIsActive = is_active === 1;
+      }
+    }
+
+    const parsedNotes = notes !== undefined && notes !== null ? String(notes) : null;
+    const parsedMeeshoSupplierId = meesho_supplier_id !== undefined && meesho_supplier_id !== null ? String(meesho_supplier_id).trim() || null : null;
+    const parsedMeeshoUsername = meesho_username !== undefined && meesho_username !== null ? String(meesho_username).trim() || null : null;
+    const parsedMeeshoPassword = meesho_password !== undefined && meesho_password !== null ? String(meesho_password) || null : null;
+
+    const parsedFlipkartSupplierId = flipkart_supplier_id !== undefined && flipkart_supplier_id !== null ? String(flipkart_supplier_id).trim() || null : null;
+    const parsedFlipkartUsername = flipkart_username !== undefined && flipkart_username !== null ? String(flipkart_username).trim() || null : null;
+    const parsedFlipkartPassword = flipkart_password !== undefined && flipkart_password !== null ? String(flipkart_password) || null : null;
+
     const account = await prisma.account.create({
       data: {
-        name,
-        platform: platform.toLowerCase(),
-        is_active: is_active !== undefined ? is_active : true,
-        notes: notes || null,
-        meesho_supplier_id: isMeesho ? meesho_supplier_id || null : null,
-        meesho_username: isMeesho ? meesho_username || null : null,
-        meesho_password: isMeesho ? meesho_password || null : null,
-        meesho_sync_status: isMeesho && meesho_username && meesho_password ? 'pending' : null,
-        flipkart_supplier_id: isFlipkart ? flipkart_supplier_id || null : null,
-        flipkart_username: isFlipkart ? flipkart_username || null : null,
-        flipkart_password: isFlipkart ? flipkart_password || null : null,
-        flipkart_sync_status: isFlipkart && flipkart_username && flipkart_password ? 'pending' : null
+        name: String(name).trim(),
+        platform: String(platform).trim().toLowerCase(),
+        is_active: parsedIsActive,
+        notes: parsedNotes,
+        meesho_supplier_id: isMeesho ? parsedMeeshoSupplierId : null,
+        meesho_username: isMeesho ? parsedMeeshoUsername : null,
+        meesho_password: isMeesho ? parsedMeeshoPassword : null,
+        meesho_sync_status: isMeesho && parsedMeeshoUsername && parsedMeeshoPassword ? 'pending' : null,
+        flipkart_supplier_id: isFlipkart ? parsedFlipkartSupplierId : null,
+        flipkart_username: isFlipkart ? parsedFlipkartUsername : null,
+        flipkart_password: isFlipkart ? parsedFlipkartPassword : null,
+        flipkart_sync_status: isFlipkart && parsedFlipkartUsername && parsedFlipkartPassword ? 'pending' : null
       }
     });
 
@@ -393,22 +414,45 @@ router.put('/:id', async (req, res) => {
     }
 
     const targetPlatform = platform || original.platform;
-    const isMeesho = targetPlatform.toLowerCase() === 'meesho';
-    const isFlipkart = targetPlatform.toLowerCase() === 'flipkart';
+    const isMeesho = String(targetPlatform).toLowerCase() === 'meesho';
+    const isFlipkart = String(targetPlatform).toLowerCase() === 'flipkart';
+
+    const parsedName = name !== undefined ? (name !== null ? String(name).trim() : null) : undefined;
+    const parsedPlatform = platform !== undefined ? (platform !== null ? String(platform).trim().toLowerCase() : null) : undefined;
+    
+    let parsedIsActive = undefined;
+    if (is_active !== undefined) {
+      if (typeof is_active === 'boolean') {
+        parsedIsActive = is_active;
+      } else if (typeof is_active === 'string') {
+        parsedIsActive = is_active.toLowerCase() === 'true' || is_active === '1';
+      } else if (typeof is_active === 'number') {
+        parsedIsActive = is_active === 1;
+      }
+    }
+
+    const parsedNotes = notes !== undefined ? (notes !== null ? String(notes) : null) : undefined;
+    const parsedMeeshoSupplierId = meesho_supplier_id !== undefined ? (meesho_supplier_id !== null ? String(meesho_supplier_id).trim() || null : null) : undefined;
+    const parsedMeeshoUsername = meesho_username !== undefined ? (meesho_username !== null ? String(meesho_username).trim() || null : null) : undefined;
+    const parsedMeeshoPassword = meesho_password !== undefined ? (meesho_password !== null ? String(meesho_password) || null : null) : undefined;
+
+    const parsedFlipkartSupplierId = flipkart_supplier_id !== undefined ? (flipkart_supplier_id !== null ? String(flipkart_supplier_id).trim() || null : null) : undefined;
+    const parsedFlipkartUsername = flipkart_username !== undefined ? (flipkart_username !== null ? String(flipkart_username).trim() || null : null) : undefined;
+    const parsedFlipkartPassword = flipkart_password !== undefined ? (flipkart_password !== null ? String(flipkart_password) || null : null) : undefined;
 
     const account = await prisma.account.update({
       where: { id: parseInt(id) },
       data: {
-        name,
-        platform: platform ? platform.toLowerCase() : undefined,
-        is_active,
-        notes,
-        meesho_supplier_id: isMeesho ? meesho_supplier_id || null : null,
-        meesho_username: isMeesho ? meesho_username || null : null,
-        meesho_password: isMeesho ? meesho_password || null : null,
-        flipkart_supplier_id: isFlipkart ? flipkart_supplier_id || null : null,
-        flipkart_username: isFlipkart ? flipkart_username || null : null,
-        flipkart_password: isFlipkart ? flipkart_password || null : null
+        name: parsedName,
+        platform: parsedPlatform,
+        is_active: parsedIsActive,
+        notes: parsedNotes,
+        meesho_supplier_id: isMeesho ? (parsedMeeshoSupplierId !== undefined ? parsedMeeshoSupplierId : original.meesho_supplier_id) : null,
+        meesho_username: isMeesho ? (parsedMeeshoUsername !== undefined ? parsedMeeshoUsername : original.meesho_username) : null,
+        meesho_password: isMeesho ? (parsedMeeshoPassword !== undefined ? parsedMeeshoPassword : original.meesho_password) : null,
+        flipkart_supplier_id: isFlipkart ? (parsedFlipkartSupplierId !== undefined ? parsedFlipkartSupplierId : original.flipkart_supplier_id) : null,
+        flipkart_username: isFlipkart ? (parsedFlipkartUsername !== undefined ? parsedFlipkartUsername : original.flipkart_username) : null,
+        flipkart_password: isFlipkart ? (parsedFlipkartPassword !== undefined ? parsedFlipkartPassword : original.flipkart_password) : null
       }
     });
 
@@ -435,16 +479,6 @@ router.put('/:id', async (req, res) => {
     res.json(account);
   } catch (err) {
     console.error(err);
-    try {
-      await prisma.account.update({
-        where: { id: parseInt(id) },
-        data: {
-          meesho_sync_error: `DB_DEBUG_PUT_ERROR: ${err.stack || err.message}`
-        }
-      });
-    } catch (e) {
-      console.error('Failed to write debug error to DB:', e);
-    }
     res.status(500).json({ error: 'Failed to update account' });
   }
 });
